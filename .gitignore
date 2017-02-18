@@ -1,2 +1,3 @@
 vision/build
 .venv
+*.csv
