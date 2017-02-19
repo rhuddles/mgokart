@@ -5,20 +5,19 @@ from operator import itemgetter
 
 import math
 import sys
-import random
 
-MAX_SLOPE_ALLOWED = math.pi / 4
+# The maximum change in slope allowed
+MAX_SLOPE_ALLOWED = math.pi / 3 # 60 degrees
+VERTICAL_SLOPE = sys.maxint # "Infinity"
 
 def dist(p0, p1):
     return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
 
 def find_starting_cone(cones):
-    print 'sorted by both', sorted(cones, key=lambda point: (point[1], point[0]))
     # Get lower-leftmost cone
     cones.sort(key=lambda point: (point[1], point[0]))
     lower_left = cones[0]
     cones.pop(0)
-    print 'starting', lower_left
     return lower_left
 
 def find_closest_cone(current_cone, cones):
@@ -32,57 +31,15 @@ def find_closest_cone(current_cone, cones):
 
 def get_slope(cone, boundary):
     if len(boundary) < 2:
-        return sys.maxint
+        return VERTICAL_SLOPE
 
     end_cone = boundary[-1]
     
     rise = end_cone[1] - cone[1]
     run = end_cone[0] - cone[0]
-    return sys.maxint if run == 0 else rise / run
+    return VERTICAL_SLOPE if run == 0 else rise / run
 
-# In: List of x,y tuples - [(x, y), ...]
-# Out: Two ordered lists x,y tuples - [(x,y), ...], [(x,y), ...]
-def create_boundary_lines(frame):
-    frame = left_turn_data
-    # FOR TESTING
-    random.shuffle(frame)
-
-    # Find starting cone
-    starting_cone = find_starting_cone(frame)
-
-    # Create boundaries
-    left_boundary = [starting_cone]
-    right_boundary = []
-
-    current_cone = starting_cone
-    current_slope = sys.maxint
-    current_boundary = left_boundary
-
-    # Assign each cone to a boundary
-    while len(frame):
-        # Get closest cone to current
-        cone = find_closest_cone(current_cone, frame)
-
-        print 'next cone', frame[cone]
-        current_cone = frame[cone]
-        frame.pop(cone)
-
-        # Get slope
-        slope = get_slope(current_cone, current_boundary)
-        print 'slope', slope
-
-        # Check change in slope
-        slope_diff = abs(math.atan(slope) - math.atan(current_slope))
-        print 'slope diff', slope_diff
-        if  slope_diff > MAX_SLOPE_ALLOWED:
-            print 'switching boundaries'
-            current_boundary = right_boundary
-
-        current_slope = slope
-        current_boundary.append(current_cone)
-        print 'current boundary', current_boundary
-
-
+def plot_boundaries(left_boundary, right_boundary):
     # Plot left boundary
     left_xs = [point[0] for point in left_boundary]
     left_ys = [point[1] for point in left_boundary]
@@ -96,11 +53,51 @@ def create_boundary_lines(frame):
     plt.plot(right_xs, right_ys, color='yellow')
 
     plt.show()
+
+# In: List of x,y tuples - [(x, y), ...]
+# Out: Two ordered lists x, y tuples - [(x,y), ...], [(x,y), ...]
+def create_boundary_lines(frame):
+    if not len(frame):
+        return [], []
+
+    # Find starting cone
+    starting_cone = find_starting_cone(frame)
+
+    # Create boundaries
+    left_boundary = [starting_cone]
+    right_boundary = []
+
+    current_cone = starting_cone
+    current_boundary = left_boundary
+    prev_slope = VERTICAL_SLOPE
+
+    # Assign each cone to a boundary
+    while len(frame):
+        # Get closest cone to current
+        cone = find_closest_cone(current_cone, frame)
+        current_cone = frame[cone]
+        frame.pop(cone)
+
+        # Get slope
+        current_slope = get_slope(current_cone, current_boundary)
+
+        # Check change in slope
+        slope_diff = abs(abs(math.atan(current_slope)) - abs(math.atan(prev_slope)))
+        if slope_diff > MAX_SLOPE_ALLOWED:
+            current_boundary = right_boundary
+
+        # Add cone to boundary
+        current_boundary.append(current_cone)
+        prev_slope = current_slope
+
     return left_boundary, right_boundary 
 
 if __name__ == '__main__':
-    create_boundary_lines([])
     #frames = parse_csv_data('lidar_data.csv')
-    #for frame in frames:
-    #    lines = create_boundary_lines(frame)
-    #    print lines
+    frames = [straight_data, left_turn_data, right_turn_data]
+    for frame in frames:
+        lines = create_boundary_lines(frame)
+        # Uncomment to see boundaries on a scatter plot
+        #plot_boundaries(lines[0], lines[1])
+        print 'Left Boundary: ', lines[0]
+        print 'Right Boundary: ', lines[1]
