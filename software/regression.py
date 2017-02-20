@@ -8,7 +8,9 @@ import os
 
 files = sorted(os.listdir('data'))
 
-frames = pd.parse_csv_data('data/' + files[5])
+filename = 'data/' + files[6]
+print(filename)
+frames = pd.parse_csv_data(filename)
 cones = fd.get_cones(frames[0])
 
 x = [frame[0] for frame in cones]
