@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from matplotlib import pyplot as plt
 from parse_data import parse_csv_data
 from data import left_turn_data, right_turn_data, straight_data
