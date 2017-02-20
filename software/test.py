@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
@@ -67,13 +69,13 @@ def drawTrack(img, cones):
 		print "Starting left"
 		cone = near_cone_left
 	else:
-		print "Starting right"	
-	
+		print "Starting right"
+
 	# Set starting cone
 	point = cones[cone][0]
 	cones.pop(cone)
 
-	# Connect all cones 
+	# Connect all cones
 	while len(cones):
 
 		# Get closest cone to current
@@ -114,7 +116,7 @@ def drawTrack(img, cones):
 		# 	if dist(point,cones[cone][0]) > 150:
 		# 		# print dist(point,cones[cone][0])
 		# 		# print "hard left - cross track"
-		# 		color = (255,255,255) 
+		# 		color = (255,255,255)
 		# 	else:
 		# 		# print "hard left"
 		# 		color = (0,0,255)
@@ -122,7 +124,7 @@ def drawTrack(img, cones):
 		# 	if dist(point,cones[cone][0]) > 150:
 		# 		# print dist(point,cones[cone][0])
 		# 		# print "horizontal - cross track"
-		# 		color = (255,255,255) 
+		# 		color = (255,255,255)
 		# 	else:
 		# 		# print "horizontal - curved track"
 		# 		color = (0,0,255)
@@ -130,16 +132,16 @@ def drawTrack(img, cones):
 		# 	if dist(point,cones[cone][0]) > 150:
 		# 		# print dist(point,cones[cone][0])
 		# 		# print "hard right - cross track"
-		# 		color = (255,255,255) 
+		# 		color = (255,255,255)
 		# 	else:
 		# 		# print "hard right"
-		# 		color = (0,0,255)   
+		# 		color = (0,0,255)
 		# elif -.7 < slope <= -.5:
 		# 	# print "slant right"
 		# 	color = (255,0,0)
 		# else:
 		# 	# print "straight"
-		# 	color = (0,255,0)  
+		# 	color = (0,255,0)
 		# # if point[0] < center and cones[cone][0][0] < center:
 		# 	cv2.line(track_img,point,cones[cone][0],color,2)
 		# elif point[0] > center and cones[cone][0][0] > center:
@@ -160,7 +162,7 @@ def filterOrange(img):
 	lower = np.array([0,90,100])
 	upper = np.array([5,255,255])
 
-	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)    
+	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 	mask = cv2.inRange(hsv, lower, upper)
 	return cv2.bitwise_and(img, img, mask = mask)
 
@@ -170,7 +172,7 @@ def getCones(img):
 	gry = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 	contours, _ = cv2.findContours(gry, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-	
+
 	for cnt in contours:
 		if cv2.arcLength(cnt,True) > 50:
 			(x,y),radius = cv2.minEnclosingCircle(cnt)
@@ -183,7 +185,7 @@ def getCones(img):
 	# for c1_idx in xrange(0,len(cones)):
 	# 	print
 	# 	print "c1 " + str(c1_idx) + " of " + str(len(cones))
-	# 	print 
+	# 	print
 	# 	for c2_idx in xrange(c1_idx+1,len(cones)-1):
 	# 		print "c2 " + str(c2_idx) + " of " + str(len(cones))
 	# 		if overlap(cones[c1_idx], cones[c2_idx]):
@@ -204,7 +206,7 @@ total_bars = int(columns) - 5
 pics_dir = '../vision/conez/'
 if len(sys.argv) > 1:
 	image = 'conez' + sys.argv[1] + '.png'
-	pics = [image] 
+	pics = [image]
 	print 'Using image ' + image
 else:
 	pics = os.listdir(pics_dir)
@@ -230,7 +232,7 @@ for p in pics:
 	cone_img = frame.copy()
 	for c in cones:
 		cv2.circle(cone_img,c[0],c[1],(0,255,0),2)
-	
+
 
 	# Draw Track
 	track = drawTrack(frame, cones)

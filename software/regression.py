@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,7 +6,7 @@ import parse_data as pd
 import filter_data as fd
 import os
 
-files = os.listdir('data')
+files = sorted(os.listdir('data'))
 
 frames = pd.parse_csv_data('data/' + files[8])
 
