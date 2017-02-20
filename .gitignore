@@ -2,4 +2,3 @@ vision/build
 .venv
 venv
 *.pyc
-*.csv

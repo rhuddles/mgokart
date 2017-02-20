@@ -32,5 +32,5 @@ def parse_csv_data(filename):
     return frames
 
 if __name__ == '__main__':
-    frames = parse_csv_data('lidar_data.csv')
+    frames = parse_csv_data('data/wilson_center_wall.csv')
     print(frames)
