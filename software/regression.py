@@ -8,29 +8,34 @@ import os
 
 files = sorted(os.listdir('data'))
 
+files = os.listdir('data')
 frames = pd.parse_csv_data('data/' + files[8])
+cones = fd.get_cones(frames[0])
 
-filtered_frame = fd.filter_data(frames[0])
-cones = fd.get_cones(filtered_frame)
+x = [frame[0] for frame in cones]
+y = [frame[1] for frame in cones]
 
-print len(cones)
+x_plot = np.linspace(-10000, 10000, 20000)
 
-#Rotate image 90 degrees to deal with infinite slope on straightaways
-x = [frame[1] for frame in cones]
-y = [-frame[0] for frame in cones]
-
-x_plot = np.linspace(-10000, 10000, 50000)
-
-for degree in range(1,5):
-    polys = np.polyfit(x, y, degree)
+for n in range(1,5):
+    # Fits a n degree polynomial to data
+    polys = np.polyfit(x, y, n)
     f = np.poly1d(polys)
-    plt.subplot(2, 2, degree)
+    plt.subplot(2, 2, n)
+
+    # If above polynomial, its one boundary, otherwise its the other
     for i in range(0,len(y)):
-        plt.scatter(x[i], y[i],  color='red' if y[i] < f(x[i]) else 'blue',
+        plt.scatter(x[i], y[i], color='r' if y[i] < f(x[i]) else 'b',
             marker='^');
-        plt.plot(x_plot, f(x_plot), color='black')
-    plt.ylabel('Degree = %d' % degree)
+
+    # Plot the boundary for visualization purposes
+    plt.plot(x_plot, f(x_plot), 'k')
+
+    # Label plots and set axes
+    plt.suptitle('Regression Boundary Mapping', fontsize=16)
+    plt.ylabel('Degree = %d' % n)
     plt.xlim([-10000, 10000])
     plt.ylim([-10000, 10000])
 
 plt.show()
+
