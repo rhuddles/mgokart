@@ -8,14 +8,21 @@ from filter_data import *
 
 import math
 import sys
+import time
 
 # The maximum change in slope allowed
-MAX_SLOPE_ALLOWED = math.pi / 3 # 60 degrees
+MAX_ANGLE_ALLOWED = math.radians(45)
 MAX_DISTANCE_ALLOWED = 5500 # 5.5 meters
 VERTICAL_SLOPE = sys.maxint # "Infinity"
 
 def dist(p0, p1):
     return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
+
+def angle_between(u, v):
+    # cos(theta) = (u dot v) / (||u|| * ||v||)
+    num = u[0] * v[0] + u[1] * v[1]
+    den = dist((0, 0), u) * dist((0, 0), v)
+    return math.acos(num / den)
 
 def find_lower_left_cone(cones):
     # Get lower-leftmost cone
@@ -85,40 +92,47 @@ def create_boundary_lines(frame):
 def create_boundary_line(frame, starting_cone):
     boundary = [starting_cone]
     prev_cone = starting_cone
-    prev_slope = VERTICAL_SLOPE
+    prev_vector = (0., 1.) # previous slope vector, start assuming vertical
 
-    count = 0
+    ignored_cones = []
     # Assign each cone to a boundary
-    while count < len(frame):
+    while len(ignored_cones) < len(frame):
         # Get closest cone to current
         cone = find_closest_cone(prev_cone, frame)
         current_cone = frame[cone]
 
-        # Get slope
-        current_slope = get_slope(current_cone, boundary)
+        # Get slope vector
+        current_vector = (current_cone[0] - prev_cone[0],
+                        current_cone[1] - prev_cone[1])
 
-        # Check change in slope
-        slope_diff = abs(abs(math.atan(current_slope)) - abs(math.atan(prev_slope)))
-        print('Current: ', current_cone, 'Diff:    ', slope_diff)
-        print('prev: ', prev_slope, 'curr: ', current_slope)
-        if slope_diff > MAX_SLOPE_ALLOWED or \
+        # Check change in angle
+        theta = angle_between(prev_vector, current_vector)
+        print('current: %s\ttheta: %f' % (str(current_cone), math.degrees(theta)))
+
+        if theta > MAX_ANGLE_ALLOWED or \
                 dist(current_cone, prev_cone) > MAX_DISTANCE_ALLOWED:
             print('** ignored')
-            count += 1
-            continue
+            ignored_cones.append(current_cone)
+            frame.pop(cone)
         else:
             # Add cone to boundary
             boundary.append(current_cone)
+            # Save cone and slope vector
             prev_cone = current_cone
-            prev_slope = current_slope
-            frame.pop(cone)
-            print(count, len(frame))
+            prev_vector = current_vector
 
+            frame.pop(cone)
+            # Put ignored cones back into frame
+            frame = ignored_cones + frame
+            ignored_cones = []
+
+    frame = ignored_cones + frame
     return boundary
 
 if __name__ == '__main__':
     #frames = [straight_data, left_turn_data, right_turn_data]
-    frames = parse_csv_data('data/2017_02_19_19_53_02_987_sharp_right_full_inside.csv')
+    frames = parse_csv_data('data/2017_02_19_19_43_24_378_in_slight_left_so_good.csv')
+    start = time.time()
     frame = filter_data(frames[0])
     cones = get_cones(frame)
     plt.scatter([cone[0] for cone in cones], [cone[1] for cone in cones], color='b')
@@ -126,6 +140,7 @@ if __name__ == '__main__':
     frames = [cones]
     for frame in frames:
         lines = create_boundary_lines(frame)
+        print('Boundary mapping took %f seconds' % (time.time() - start))
         # Uncomment to see boundaries on a scatter plot
         plot_boundaries(lines[0], lines[1])
         print 'Left Boundary: ', lines[0]

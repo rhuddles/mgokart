@@ -13,7 +13,7 @@ def get_world_points(data):
     step = 270.0 / len(data)
 
     for val in data:
-        points.append(polar_to_cart(theta, int(val)))
+        points.append(polar_to_cart(theta, float(val)))
         theta += step
 
     return points
