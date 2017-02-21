@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
+from matplotlib import pyplot as plt
+from parse_data import parse_csv_data
 import math as m
+import os
+import sys
 
 def filter_data(data):
     filtered = []
@@ -35,3 +39,25 @@ def get_cones(data):
     cones = group_cones(filtered)
     return cones
 
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print('Usage: {} <csv-file>'.format(sys.argv[0]))
+        quit()
+
+    # Filter the LIDAR capture specified
+    filename = sys.argv[1]
+    frame = parse_csv_data(os.path.join(filename))[0]
+    cones = get_cones(frame)
+
+    # Plot raw data
+    xs = [point[0] for point in frame]
+    ys = [point[1] for point in frame]
+    plt.scatter(xs, ys, marker='^', color='yellow')
+
+    # Plot filtered data
+    xs = [point[0] for point in cones]
+    ys = [point[1] for point in cones]
+    plt.scatter(xs, ys, marker='^', color='blue')
+
+    plt.title(filename)
+    plt.show()
