@@ -40,24 +40,27 @@ def get_cones(data):
     return cones
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print('Usage: {} <csv-file>'.format(sys.argv[0]))
-        quit()
+    if len(sys.argv) > 1:
+        files = sys.argv[1:]
+    else:
+        files = ['data/' + path for path in sorted(os.listdir('data'))]
 
-    # Filter the LIDAR capture specified
-    filename = sys.argv[1]
-    frame = parse_csv_data(os.path.join(filename))[0]
-    cones = get_cones(frame)
+    for filename in files:
+        # Filter the LIDAR capture specified
+        frame = parse_csv_data(filename)[0]
+        cones = get_cones(frame)
 
-    # Plot raw data
-    xs = [point[0] for point in frame]
-    ys = [point[1] for point in frame]
-    plt.scatter(xs, ys, marker='^', color='yellow')
+        # Plot raw data
+        xs = [point[0] for point in frame]
+        ys = [point[1] for point in frame]
+        plt.scatter(xs, ys, marker='x', color='red')
 
-    # Plot filtered data
-    xs = [point[0] for point in cones]
-    ys = [point[1] for point in cones]
-    plt.scatter(xs, ys, marker='^', color='blue')
+        # Plot filtered data
+        xs = [point[0] for point in cones]
+        ys = [point[1] for point in cones]
+        plt.scatter(xs, ys, marker='^', color='blue')
 
-    plt.title(filename)
-    plt.show()
+        plt.scatter(0, 0, color='green')
+
+        plt.title(filename)
+        plt.show()
