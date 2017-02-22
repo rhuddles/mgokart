@@ -11,7 +11,7 @@ import sys
 import time
 
 # The maximum change in slope allowed
-MAX_ANGLE_ALLOWED = math.radians(45)
+MAX_ANGLE_ALLOWED = math.radians(50)
 MAX_DISTANCE_ALLOWED = 5500 # 5.5 meters
 VERTICAL_SLOPE = sys.maxint # "Infinity"
 
@@ -59,15 +59,16 @@ def plot_boundaries(left_boundary, right_boundary):
     # Plot left boundary
     left_xs = [point[0] for point in left_boundary]
     left_ys = [point[1] for point in left_boundary]
-    plt.scatter(left_xs, left_ys, marker='^', color='green')
-    plt.plot(left_xs, left_ys, color='green')
+    #plt.scatter(left_xs, left_ys, marker='^', color='green')
+    plt.plot(left_xs, left_ys, color='orange')
 
     # Plot right boundary
     right_xs = [point[0] for point in right_boundary]
     right_ys = [point[1] for point in right_boundary]
-    plt.scatter(right_xs, right_ys, marker='^', color='yellow')
-    plt.plot(right_xs, right_ys, color='yellow')
+    #plt.scatter(right_xs, right_ys, marker='^', color='red')
+    plt.plot(right_xs, right_ys, color='red')
 
+    plt.scatter(0, 0, color='green')
     plt.show()
 
 # In: List of x,y tuples - [(x, y), ...]
@@ -131,11 +132,11 @@ def create_boundary_line(frame, starting_cone):
 
 if __name__ == '__main__':
     #frames = [straight_data, left_turn_data, right_turn_data]
-    frames = parse_csv_data('data/2017_02_19_19_43_24_378_in_slight_left_so_good.csv')
+    frames = parse_csv_data('data/2017_02_19_19_16_18_538_people_as_cones_straight.csv')
     start = time.time()
     frame = filter_data(frames[0])
     cones = get_cones(frame)
-    plt.scatter([cone[0] for cone in cones], [cone[1] for cone in cones], color='b')
+    plt.scatter([cone[0] for cone in cones], [cone[1] for cone in cones], color='b', marker='^')
     print('CONES', cones)
     frames = [cones]
     for frame in frames:
