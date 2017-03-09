@@ -6,6 +6,18 @@ import math as m
 import os
 import sys
 
+def dist(a, b):
+    xdiff = a[0] - b[0]
+    ydiff = a[1] - b[1]
+    return m.sqrt(xdiff**2 + ydiff**2)
+
+def average(cones):
+    x_total = sum([pt[0] for pt in cones])
+    y_total = sum([pt[1] for pt in cones])
+    size = len(cones)
+
+    return (x_total / size, y_total / size)
+
 def filter_data(data):
     filtered = []
 
@@ -23,15 +35,20 @@ def filter_data(data):
 def group_cones(data):
     cones = []
 
-    for i in range(1, len(data)-1):
-        xdiff = data[i][0] - data[i-1][0]
-        ydiff = data[i][1] - data[i-1][1]
-        dist = m.sqrt(xdiff**2 + ydiff**2)
+    # all the points representing the current cone
+    this_cone = [data[0]]
 
+    for i in range(1, len(data)):
         # 250 mm = 25 cm which is approx width of base of cone
-        if (dist > 250):
-            cones.append(data[i])
+        if dist(this_cone[0], data[i]) <= 250:
+            # this point is representing the same cone
+            this_cone.append(data[i])
+        else:
+            # new cone! save and start next cone
+            cones.append(average(this_cone))
+            this_cone = [data[i]]
 
+    cones.append(average(this_cone))
     return cones
 
 def get_cones(data):
@@ -48,14 +65,22 @@ if __name__ == '__main__':
     for filename in files:
         # Filter the LIDAR capture specified
         frame = parse_csv_data(filename)[0]
-        cones = get_cones(frame)
 
         # Plot raw data
         xs = [point[0] for point in frame]
         ys = [point[1] for point in frame]
         plt.scatter(xs, ys, marker='x', color='red')
 
-        # Plot filtered data
+        filtered = filter_data(frame)
+
+        # Plot filtered, ungrouped points
+        xs = [point[0] for point in filtered]
+        ys = [point[1] for point in filtered]
+        plt.scatter(xs, ys, marker='o', color='black')
+
+        cones = group_cones(filtered)
+
+        # Plot grouped cones
         xs = [point[0] for point in cones]
         ys = [point[1] for point in cones]
         plt.scatter(xs, ys, marker='^', color='blue')
