@@ -41,8 +41,7 @@ plot_line(right_coefs, min(right_xs), max(right_xs), '--k')
 
 # Calculate center line
 avg_coefs = np.add(left_coefs, right_coefs) / 2
-#black, = plot_line(avg_coefs, min(left_xs + right_xs), max(left_xs + right_xs))
-black, = plot_line(avg_coefs, 0, max(left_xs + right_xs))
+black, = plot_line(avg_coefs, min(left_xs + right_xs), max(left_xs + right_xs))
 
 def predict_next_pos(speed, heading, dt):
     vel = np.array([math.cos(heading), math.sin(heading)])
@@ -53,7 +52,7 @@ def predict_next_pos(speed, heading, dt):
 next_pos = predict_next_pos(1000, 0, 0.3)
 
 green = plt.scatter(0, 0, color='green')
-#cyan = plt.scatter(next_pos[0], next_pos[1], color='cyan')
+cyan = plt.scatter(next_pos[0], next_pos[1], color='cyan')
 
 # Make plot look nice for report
 plt.xlabel('Distance in millimeters')

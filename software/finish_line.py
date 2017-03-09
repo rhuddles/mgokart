@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
-from filter_data import *
-from greedy import angle_between
+from parse_data import parse_csv_data
+from filter_data import get_cones
+from greedy_boundary_mapping import angle_between
+from utility import separate_xy, dist
 
+import sys
 import math
 import matplotlib.pyplot as plt
 
@@ -50,15 +53,29 @@ if __name__ == '__main__':
         frame = parse_csv_data(filename)[0]
         cones = get_cones(frame)
 
-        plt.scatter([p[0] for p in cones], [p[1] for p in cones],
-                marker='^', color='blue')
+        cone_xs, cone_ys = separate_xy(cones)
+        blue = plt.scatter(cone_xs, cone_ys, marker='^', color='blue')
 
         finish_line_groups = get_finish_line_groups(cones)
         print finish_line_groups
 
+        magenta = None
         for group in finish_line_groups:
-            plt.scatter([pt[0] for pt in group], [pt[1] for pt in group],
-                    marker='^', color='magenta')
+            group_xs, group_ys = separate_xy(group)
+            magenta = plt.scatter(group_xs, group_ys, marker='^', color='magenta')
 
-        plt.scatter(0, 0, color='green')
+        green = plt.scatter(0, 0, color='green')
+
+        # Make plot look nice for report
+        plt.xlabel('Distance in millimeters')
+        plt.ylabel('Distance in millimeters')
+
+        plt.legend(
+            (magenta, blue, green),
+            ('Finish Line Cone', 'Detected Cone', 'Vehicle Position'),
+            loc='upper left'
+        )
+
+        plt.axis('equal')
+        plt.title('Finish Line Detection')
         plt.show()
