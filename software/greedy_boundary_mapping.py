@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
-from matplotlib import pyplot as plt
-from parse_data import parse_csv_data
 from data import left_turn_data, right_turn_data, straight_data
+from filter_data import get_cones
+from matplotlib import pyplot as plt
 from operator import itemgetter
-from filter_data import *
+from parse_data import parse_csv_data
+from utility import dist
 
 import math
 import sys
@@ -52,20 +53,34 @@ def get_slope(cone, boundary):
     run = end_cone[0] - cone[0]
     return VERTICAL_SLOPE if run == 0 else rise / run
 
-def plot_boundaries(left_boundary, right_boundary):
+def plot_boundaries(cones, left_boundary, right_boundary):
+    # Plot cones
+    blue = plt.scatter([cone[0] for cone in cones], [cone[1] for cone in cones], color='blue', marker='^')
+
     # Plot left boundary
     left_xs = [point[0] for point in left_boundary]
     left_ys = [point[1] for point in left_boundary]
-    #plt.scatter(left_xs, left_ys, marker='^', color='green')
-    plt.plot(left_xs, left_ys, color='orange')
+    orange, = plt.plot(left_xs, left_ys, color='orange')
 
     # Plot right boundary
     right_xs = [point[0] for point in right_boundary]
     right_ys = [point[1] for point in right_boundary]
-    #plt.scatter(right_xs, right_ys, marker='^', color='red')
-    plt.plot(right_xs, right_ys, color='red')
+    red, = plt.plot(right_xs, right_ys, color='red')
 
-    plt.scatter(0, 0, color='green')
+    green = plt.scatter(0, 0, color='green')
+
+    # Make plot look nice for report
+    plt.xlabel('Distance in millimeters')
+    plt.ylabel('Distance in millimeters')
+
+    plt.legend(
+        (orange, red, blue, green),
+        ('Left Boundary', 'Right Boundary', 'Detected Cone', 'Vehicle Position'),
+        loc='upper left'
+    )
+
+    plt.axis('equal')
+    plt.title('Greedy Boundary Mapping')
     plt.show()
 
 # In: List of x,y tuples - [(x, y), ...]
@@ -128,18 +143,21 @@ def create_boundary_line(frame, starting_cone):
     return boundary
 
 if __name__ == '__main__':
-    #frames = [straight_data, left_turn_data, right_turn_data]
-    frames = parse_csv_data('data/2017_02_19_19_16_18_538_people_as_cones_straight.csv')
-    start = time.time()
-    frame = filter_data(frames[0])
-    cones = get_cones(frame)
-    plt.scatter([cone[0] for cone in cones], [cone[1] for cone in cones], color='b', marker='^')
-    print('CONES', cones)
-    frames = [cones]
-    for frame in frames:
-        lines = create_boundary_lines(frame)
+    if len(sys.argv) > 1:
+        files = sys.argv[1:]
+    else:
+        files = ['data/' + path for path in sorted(os.listdir('data'))]
+
+    for filename in files:
+        frame = parse_csv_data(filename)[0]
+        cones = get_cones(frame)
+        cones_for_plot = list(cones)
+
+        start = time.time()
+        lines = create_boundary_lines(cones)
         print('Boundary mapping took %f seconds' % (time.time() - start))
+
         # Uncomment to see boundaries on a scatter plot
-        plot_boundaries(lines[0], lines[1])
+        plot_boundaries(cones_for_plot, lines[0], lines[1])
         print 'Left Boundary: ', lines[0]
         print 'Right Boundary: ', lines[1]

@@ -2,14 +2,10 @@
 
 from matplotlib import pyplot as plt
 from parse_data import parse_csv_data
+from utility import dist, separate_xy
 import math as m
 import os
 import sys
-
-def dist(a, b):
-    xdiff = a[0] - b[0]
-    ydiff = a[1] - b[1]
-    return m.sqrt(xdiff**2 + ydiff**2)
 
 def average(cones):
     x_total = sum([pt[0] for pt in cones])
@@ -67,25 +63,28 @@ if __name__ == '__main__':
         frame = parse_csv_data(filename)[0]
 
         # Plot raw data
-        xs = [point[0] for point in frame]
-        ys = [point[1] for point in frame]
-        plt.scatter(xs, ys, marker='x', color='red')
+        xs, ys = separate_xy(frame)
+        red = plt.scatter(xs, ys, marker='x', color='red')
 
-        filtered = filter_data(frame)
-
-        # Plot filtered, ungrouped points
-        xs = [point[0] for point in filtered]
-        ys = [point[1] for point in filtered]
-        plt.scatter(xs, ys, marker='o', color='black')
-
-        cones = group_cones(filtered)
+        cones = get_cones(frame)
 
         # Plot grouped cones
-        xs = [point[0] for point in cones]
-        ys = [point[1] for point in cones]
-        plt.scatter(xs, ys, marker='^', color='blue')
+        xs, ys = separate_xy(cones)
+        blue = plt.scatter(xs, ys, marker='^', color='blue')
 
-        plt.scatter(0, 0, color='green')
+        green = plt.scatter(0, 0, color='green')
 
-        plt.title(filename)
+        # Make plot look nice for report
+        plt.axis('equal')
+
+        plt.xlabel('Distance in millimeters')
+        plt.ylabel('Distance in millimeters')
+
+        plt.legend(
+            (red, blue, green),
+            ('Filtered Data Point', 'Detected Cone', 'Vehicle Position'),
+            loc='upper left'
+        )
+
+        plt.title('Distance and Clustering Filtering')
         plt.show()
