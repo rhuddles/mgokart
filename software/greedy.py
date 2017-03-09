@@ -15,9 +15,6 @@ MAX_ANGLE_ALLOWED = math.radians(50)
 MAX_DISTANCE_ALLOWED = 5500 # 5.5 meters
 VERTICAL_SLOPE = sys.maxint # "Infinity"
 
-def dist(p0, p1):
-    return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
-
 def angle_between(u, v):
     # cos(theta) = (u dot v) / (||u|| * ||v||)
     num = u[0] * v[0] + u[1] * v[1]
