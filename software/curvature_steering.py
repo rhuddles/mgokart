@@ -26,14 +26,28 @@ plt.plot(right_xs, right_ys, color='red')
 
 x_plot = np.linspace(-10000, 10000, 2)
 
-vecx = np.mean([boundaries[0][len(boundaries[0])-1][0], boundaries[1][len(boundaries[1])-1][0]])
-vecy = np.mean([boundaries[0][len(boundaries[0])-1][1], boundaries[1][len(boundaries[1])-1][1]])
+left_endpt = np.array([boundaries[0][len(boundaries[0])-1][0],
+        boundaries[0][len(boundaries[0])-1][1]])
+
+right_endpt = np.array([boundaries[1][len(boundaries[1])-1][0],
+        boundaries[1][len(boundaries[1])-1][1]])
+
+vecx = np.mean([left_endpt[0], right_endpt[0]])
+vecy = np.mean([left_endpt[1], right_endpt[1]])
 
 print m.degrees(m.atan(vecx/vecy))
 nl = np.polyfit([0, vecx], [0, vecy], 1)
 f = np.poly1d(nl)
 
-plt.plot(x_plot, f(x_plot), 'k')
+#plt.plot(x_plot, f(x_plot), 'k')
+
+plt.plot([0, left_endpt[0]], [0, left_endpt[1]], '--k')
+plt.plot([0, right_endpt[0]], [0, right_endpt[1]], '--k')
+plt.plot([0, vecx], [0, vecy], 'k')
+
+plt.scatter(left_endpt[0], left_endpt[1], color='k', marker='^')
+plt.scatter(right_endpt[0], right_endpt[1], color='k', marker='^')
+
 plt.scatter(0, 0, color='g')
 
 plt.xlim([-6000, 8000])
