@@ -10,6 +10,7 @@ from utility import dist
 import math
 import sys
 import time
+import os
 
 # The maximum change in slope allowed
 MAX_ANGLE_ALLOWED = math.radians(50)
