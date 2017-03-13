@@ -8,11 +8,10 @@ import os
 import sys
 
 def average(cones):
-    x_total = sum([pt[0] for pt in cones])
-    y_total = sum([pt[1] for pt in cones])
-    size = len(cones)
+	x_total, y_total = separate_xy(cones)
+	size = len(cones)
 
-    return (x_total / size, y_total / size)
+	return (sum(x_total) / size, sum(y_total) / size)
 
 def filter_data(data):
     filtered = []
