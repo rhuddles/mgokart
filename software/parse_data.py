@@ -9,18 +9,20 @@ def polar_to_cart(theta, dist):
     rads = math.radians(theta)
     return (dist * math.cos(rads), dist * math.sin(rads))
 
-def get_world_points(data):
+def get_world_points(data, fov):
     points = []
     theta = -45.0
     step = 270.0 / len(data)
 
     for val in data:
-        points.append(polar_to_cart(theta, float(val)))
+        diff = abs(90 - theta)
+        if diff < (fov / 2):
+            points.append(polar_to_cart(theta, float(val)))
         theta += step
 
     return points
 
-def parse_csv_data(filename):
+def parse_csv_data(filename, fov=270):
     frames = []
 
     with open(filename, 'rb') as csvfile:
@@ -29,7 +31,7 @@ def parse_csv_data(filename):
 
         for row in reader:
             row = row[1:-1:6]
-            frames.append(get_world_points(row))
+            frames.append(get_world_points(row, fov))
 
     return frames
 
