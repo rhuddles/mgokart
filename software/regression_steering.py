@@ -14,20 +14,32 @@ def plot_line(coefs, min_x, max_x, style='-k'):
     x = np.linspace(min_x, max_x, 20000)
     return plt.plot(x, f(x), style)
 
-def predict_next_pos(speed, heading, dt):
-    vel = np.array([math.cos(heading), math.sin(heading)])
-    vel *= speed
+def predict_next_pos(speed, dt):
+    return np.array([speed * dt, 0])
 
-    return vel * dt
+def get_closest_point_on_curve(path, off_curve_pt, min_x=0, max_x=5000):
+    xs = np.linspace(min_x, max_x, max_x + min_x)
+    curve_pts = [(x, path(x)) for x in xs]
 
-def get_next_steering_angle(path_coefs, next_pos):
-    path_xs = np.linspace(-5000, 5000, 10000)
-    path = np.poly1d(path_coefs)
+    return min(curve_pts, key=lambda pt: dist(off_curve_pt, pt))
 
-    path_pts = [(x, path(x)) for x in path_xs]
+def get_waypoint(path, speed):
+    # in 3 seconds we want to be back on path
+    off_path_pt = [speed * 3, 0]
 
-    chosen_pt = min(path_pts, key=lambda pt: dist(next_pos, pt))
-    plt.scatter(chosen_pt[0], chosen_pt[1], color='red', marker='x')
+    # get closest point on curve to the chosen off path point
+    on_path_pt = get_closest_point_on_curve(path, off_path_pt)
+    return on_path_pt
+
+def get_steering_command(path, speed, dt):
+    next_pos = predict_next_pos(speed, dt)
+
+    # choose waypoint along path that we eventually want to get to
+    waypoint = get_waypoint(path, speed)
+
+    # TODO needs a sign
+    return angle_between((1, 0), waypoint)
+
 
     return angle_between((1, 0), chosen_pt)
 
@@ -36,6 +48,25 @@ def flip_xy(x, y):
 
 def separate_and_flip(points):
     return flip_xy(*separate_xy(points))
+
+def boundaries_to_steering(left, right, speed=1000, dt=0.3):
+    # Fit left line
+    left_xs, left_ys = separate_and_flip(left_boundary)
+    left_coefs = np.polyfit(left_xs, left_ys, 2)
+
+    # Fit right line
+    right_xs, right_ys = separate_and_flip(right_boundary)
+    right_coefs = np.polyfit(right_xs, right_ys, 2)
+
+    # Calculate center line
+    path_coefs = np.add(left_coefs, right_coefs) / 2
+    path = np.poly1d(path_coefs)
+
+    # make a decision for once in your life gavin
+    next_pos = predict_next_pos(speed, dt)
+    x = math.degrees(get_steering_command(path, speed, dt))
+    print x
+    return x
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
@@ -55,6 +86,7 @@ if __name__ == '__main__':
             # Separate into boundaries
             left_boundary, right_boundary = create_boundary_lines(cones)
 
+            # TODO make nice
             # Fit left line
             left_xs, left_ys = separate_and_flip(left_boundary)
             left_coefs = np.polyfit(left_xs, left_ys, 2)
@@ -64,22 +96,25 @@ if __name__ == '__main__':
             right_coefs = np.polyfit(right_xs, right_ys, 2)
 
             # Calculate center line
-            avg_coefs = np.add(left_coefs, right_coefs) / 2
+            path_coefs = np.add(left_coefs, right_coefs) / 2
+            path = np.poly1d(path_coefs)
 
             # make a decision for once in your life gavin
-            next_pos = predict_next_pos(1000, 0, 0.3)
-            angle = get_next_steering_angle(avg_coefs, next_pos)
+            speed = 1000
+            dt = 0.3
+            next_pos = predict_next_pos(speed, dt)
+            angle = get_steering_command(path, speed, dt)
             print('Gotta turn %f degrees in some direction' % math.degrees(angle))
 
             # plot just everything
-            print(filename)
+            #print(filename)
             blue = plt.scatter(cone_xs, cone_ys, color='blue', marker='^')
             orange, = plt.plot(left_xs, left_ys, color='orange')
             red, = plt.plot(right_xs, right_ys, color='red')
 
             dashed, = plot_line(left_coefs, min(left_xs), max(left_xs), '--k')
             plot_line(right_coefs, min(right_xs), max(right_xs), '--k')
-            black, = plot_line(avg_coefs, min(left_xs + right_xs),
+            black, = plot_line(path_coefs, min(left_xs + right_xs),
                     max(left_xs + right_xs))
 
             green = plt.scatter(0, 0, color='green')
