@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from filter_data import get_cones
+from finish_line import detect_finish_line
 from greedy_boundary_mapping import create_boundary_lines
 from parse_data import parse_csv_data
 from utility import separate_xy, angle_between
@@ -20,12 +21,16 @@ MAX_SPEED = 2.24 # 5 mph
 
 MAX_ANGLE = math.pi / 2 # For proportion
 
-def make_plots(cones, left_boundary, right_boundary, vec,
+def make_plots(cones, outside_cones, left_boundary, right_boundary, vec,
     left_endpt, right_endpt):
 
     # Plot cones
     cone_xs, cone_ys = separate_xy(cones)
     blue = plt.scatter(cone_xs, cone_ys, color='blue', marker='^')
+
+    # Plot outside cones
+    outside_cone_xs, outside_cone_ys = separate_xy(outside_cones)
+    cyan = plt.scatter(outside_cone_xs, outside_cone_ys, color='cyan', marker='^')
 
     # Plot left boundary
     left_xs, left_ys = separate_xy(left_boundary)
@@ -54,8 +59,8 @@ def make_plots(cones, left_boundary, right_boundary, vec,
     plt.ylabel('Distance in millimeters')
 
     plt.legend(
-        (orange, red, dashed, black, end, blue, green),
-        ('Left Boundary', 'Right Boundary', 'Endpoint Vector', 'Trend Line', 'Boundary Endpoint', 'Detected Cone', 'Vehicle Position'),
+        (orange, red, dashed, black, end, blue, cyan, green),
+        ('Left Boundary', 'Right Boundary', 'Endpoint Vector', 'Trend Line', 'Boundary Endpoint', 'Detected Cone', 'Outside Cone', 'Vehicle Position'),
         loc='upper left'
     )
 
@@ -108,6 +113,9 @@ if __name__ == '__main__':
         for frame in data:
             cones = get_cones(frame)
             cones_for_plot = list(cones)
+            detect_finish_line(cones)
+            outside_cones = set(cones_for_plot) - set(cones)
+
             left_boundary, right_boundary = create_boundary_lines(cones)
 
             speed = get_next_speed(left_boundary, right_boundary)
@@ -116,4 +124,4 @@ if __name__ == '__main__':
             # For plot
             endpts = get_endpts(left_boundary, right_boundary)
             vec = get_vec(*endpts)
-            make_plots(cones_for_plot, left_boundary, right_boundary, vec, *endpts)
+            make_plots(cones_for_plot, outside_cones, left_boundary, right_boundary, vec, *endpts)

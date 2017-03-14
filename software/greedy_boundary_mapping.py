@@ -19,12 +19,14 @@ VERTICAL_SLOPE = sys.maxint # "Infinity"
 
 def find_lower_left_cone(cones):
     # Get lower-leftmost cone
+    # TODO: Dies if there are no cones
     lower_left = cones[-1]
     cones.pop(-1)
     return lower_left
 
 def find_lower_right_cone(cones):
     # Get lower-rightmost cone
+    # TODO: Dies if there are no cones
     lower_right = cones[0]
     cones.pop(0)
     return lower_right

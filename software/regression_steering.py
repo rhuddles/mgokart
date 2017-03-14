@@ -2,6 +2,7 @@
 
 from parse_data import *
 from filter_data import *
+from finish_line import detect_finish_line
 from greedy_boundary_mapping import *
 from utility import separate_xy
 
@@ -104,6 +105,7 @@ if __name__ == '__main__':
 
         for frame in data:
             cones = get_cones(frame)
+            detect_finish_line(cones)
             cone_xs, cone_ys = separate_and_flip(cones)
 
             # Separate into boundaries
