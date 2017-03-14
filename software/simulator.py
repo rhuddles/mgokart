@@ -233,18 +233,18 @@ class Simulator(QMainWindow):
     def save(self):
         Tk().withdraw()
         file = asksaveasfile()
-        for p in self.course.points:
+        for p in self.course.gui_points:
             file.write(str(p[0])+' '+str(p[1]) + '\n')
         file.close()
 
     def load(self):
         Tk().withdraw()
         file = askopenfile()
-        self.course.points = []
+        self.course.gui_points = []
         for line in file:
             point = line.split()
             test = (int(point[0]),int(point[1]))
-            self.course.points.append(test)
+            self.course.gui_points.append(test)
         file.close()
         self.course.enableEdits(False)
         self.course.update()
@@ -281,10 +281,10 @@ class Simulator(QMainWindow):
 
         ###--- Status related buttons ---###
         status_label = QLabel('Status')
-        steering_label = QLabel('Steering Angle:')
-        self.steering_value = QLabel('')
-        speed_label = QLabel('Speed:')
-        self.speed_value = QLabel('')
+        steering_label = QLabel('Steering Angle (degrees):')
+        self.steering_value = QLabel('0')
+        speed_label = QLabel('Speed (m/s):')
+        self.speed_value = QLabel('0')
 
 
         ###--- Menu Layout ---###
