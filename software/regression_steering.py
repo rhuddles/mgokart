@@ -51,11 +51,11 @@ def separate_and_flip(points):
 
 def boundaries_to_steering(left, right, speed=1000, dt=0.3):
     # Fit left line
-    left_xs, left_ys = separate_and_flip(left_boundary)
+    left_xs, left_ys = separate_and_flip(left)
     left_coefs = np.polyfit(left_xs, left_ys, 2)
 
     # Fit right line
-    right_xs, right_ys = separate_and_flip(right_boundary)
+    right_xs, right_ys = separate_and_flip(right)
     right_coefs = np.polyfit(right_xs, right_ys, 2)
 
     # Calculate center line
