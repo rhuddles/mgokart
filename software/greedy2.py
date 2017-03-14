@@ -38,6 +38,8 @@ def find_lower_right_cone(cones):
 
 def find_closest_cone(current_cone, cones):
     min_distance = sys.maxint
+    if not len(cones):
+        return -1
     for c in range(0, len(cones)):
         dis = dist(current_cone, cones[c])
         if dis < min_distance:
@@ -71,7 +73,7 @@ def plot_boundaries(left_boundary, right_boundary):
     plt.show()
 
 
-def create_boundary_lines(cones):
+def create_boundary_lines(cones, verbose = False):
 
     left_en = True
     right_en = True
@@ -88,18 +90,23 @@ def create_boundary_lines(cones):
         if left_en:
             # Left boundary next cone
             cone = find_closest_cone(left_bound[-1], cones)
-            
+            if cone < 0:
+                break
+
             # Print distances
-            print "Testing Cone at " + str(cones[cone]) + " for left boundary"
-            print "Left: " + str(dist(cones[cone], left_bound[-1]))
-            print "Right: " + str(dist(cones[cone], right_bound[-1]))
+            if verbose:
+                print "Testing Cone at " + str(cones[cone]) + " for left boundary"
+                print "Left: " + str(dist(cones[cone], left_bound[-1]))
+                print "Right: " + str(dist(cones[cone], right_bound[-1]))
 
             # Test cone
             if dist(cones[cone], right_bound[-1]) < dist(cones[cone], left_bound[-1]) and right_en:
-                print "Left side finished"
+                if verbose:
+                    print "Left side finished"
                 left_en = False
             else:
-                print "Adding cone to left bound"
+                if verbose:
+                    print "Adding cone to left bound"
                 left_bound.append(cones[cone])
                 cones.pop(cone)
 
@@ -108,19 +115,23 @@ def create_boundary_lines(cones):
         if right_en:
             # Right boundary next cone
             cone = find_closest_cone(right_bound[-1], cones)
-            
+            if cone < 0:
+                break
      
             # Print distances
-            print "Testing Cone at " + str(cones[cone]) + " for right boundary"
-            print "Left: " + str(dist(cones[cone], left_bound[-1]))
-            print "Right: " + str(dist(cones[cone], right_bound[-1]))
+            if verbose:
+                print "Testing Cone at " + str(cones[cone]) + " for right boundary"
+                print "Left: " + str(dist(cones[cone], left_bound[-1]))
+                print "Right: " + str(dist(cones[cone], right_bound[-1]))
 
             # Test cone
             if dist(cones[cone], left_bound[-1]) < dist(cones[cone], right_bound[-1]) and left_en:
-                print "Right side finished"
+                if verbose:
+                    print "Right side finished"
                 right_en = False
             else:
-                print "Adding cone to right bound"
+                if verbose:
+                    print "Adding cone to right bound"
                 right_bound.append(cones[cone])
                 cones.pop(cone)
 

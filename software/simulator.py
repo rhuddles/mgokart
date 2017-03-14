@@ -1,8 +1,12 @@
 import math
 from operator import itemgetter
+import os
 import sys
 from tkFileDialog import askopenfile, asksaveasfile
 from Tkinter import Tk
+import time
+import threading
+import traceback
 
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -24,14 +28,16 @@ import predictive_speed as ps
 #   y increases above the vehicle and decreases below
 
 MM_PER_PIXEL = 20
+STEPPER_SLEW = 63 #rpm
 
+
+def convertGUIToLidar(lidar_pos, gui_points):
 """
 Converts cones in the GUIs frame of reference to cones in the lidar's frame of reference.
 Returns only cones within the lidar's field of view. Sorts the cones by angle starting at -135 degrees
 lidar_pos: the position of the lidar in the GUI frame of reference given as a tuple
 gui_points: locations of cones in the GUI frame of reference given as a list of tuples
 """
-def convertGUIToLidar(lidar_pos, gui_points):
 
     # Cones seen by lidar
     lidar_coords = []
@@ -44,11 +50,37 @@ def convertGUIToLidar(lidar_pos, gui_points):
         # Convert points to polar form and filter
         dist = math.hypot(x,y)
         angle = math.degrees(math.atan2(x,y))
-        if dist <= 10000 and angle > -135 and angle < 135:
+        if dist <= 10000 and angle > -100 and angle < 100:
             lidar_coords.append(((x,y), dist, angle, point))
 
     # Sort cones by angle
     return sorted(lidar_coords,key=itemgetter(2))   
+
+
+def applyTransformation(lidar_pos, gui_points, steering_angle, speed, step_size):
+
+    # Cones in transformation
+    coords = []
+
+    # Convert from gui frame to lidar frame
+    for point in gui_points:
+        x = (point[0] - lidar_pos[0])*MM_PER_PIXEL
+        y = (lidar_pos[1] - point[1])*MM_PER_PIXEL
+
+        # Convert points to polar form and filter
+        dist = math.hypot(x,y)
+        angle = math.atan2(x,y)
+
+        new_angle = angle - math.radians(steering_angle)
+        new_x = dist*math.sin(new_angle)
+        new_y = dist*math.cos(new_angle) - speed*1000*step_size
+        guiX = new_x/MM_PER_PIXEL + lidar_pos[0] 
+        guiY = lidar_pos[1] - new_y/MM_PER_PIXEL
+
+        coords.append((guiX,guiY))
+
+    return coords
+ 
 
 class CourseMaker(QWidget):
 
@@ -59,14 +91,14 @@ class CourseMaker(QWidget):
         self.bm_on = False
         self.lk_on = False
         self.edits = False
+        self.sim_on = False
 
         # Data
         self.gui_points = []
         self.lidar_points = []
         self.left_bound = []
         self.right_bound = []
-
-        # Tmp
+        self.steering = 0
         self.speed = 0
 
         self.initUI()
@@ -75,9 +107,6 @@ class CourseMaker(QWidget):
 
     def enableEdits(self, flag):
         self.edits = flag
-
-        if not flag:
-            self.lidar_points = convertGUIToLidar(self.lidar_pos, self.gui_points)
 
     def clearMap(self):
         self.bm_on = False
@@ -88,12 +117,16 @@ class CourseMaker(QWidget):
     def runBM(self):
         self.bm_on = True
         cones_list = []
+
+        self.lidar_points = convertGUIToLidar(self.lidar_pos, self.gui_points)
+
         for point in self.lidar_points:
             cones_list.append(point[0])
         try:
             self.left_bound, self.right_bound = greedy2.create_boundary_lines(cones_list)
-        except:
+        except Exception, e:
             print('Error Running boundary mapping')
+            traceback.print_exc()
 
         self.update()
 
@@ -112,6 +145,19 @@ class CourseMaker(QWidget):
         self.lk_on=False
         self.update()
 
+    def stepSim(self):
+        T = .1
+        self.gui_points = applyTransformation(self.lidar_pos, self.gui_points, self.steering, self.speed, T)
+        self.runBM()
+        self.runLK()
+        self.update()
+
+    def runSim(self):
+        print "running thread"
+        while self.sim_on:
+            self.stepSim()
+            time.sleep(.1)
+        
     # Draws all selected points on map
     def paintEvent(self, event):
 
@@ -146,8 +192,8 @@ class CourseMaker(QWidget):
         if self.lk_on:
             paint.setPen(Qt.black)
             paint.pen().setWidth(5)
-            x = math.sin(math.radians(self.steering))*100
-            y = math.cos(math.radians(self.steering))*100
+            x = math.sin(math.radians(self.steering))*self.speed*1000/MM_PER_PIXEL
+            y = math.cos(math.radians(self.steering))*self.speed*1000/MM_PER_PIXEL
             paint.drawLine(self.lidar_pos[0],self.lidar_pos[1],self.lidar_pos[0]+x,self.lidar_pos[1]-y)
 
         # Draw cones
@@ -190,9 +236,22 @@ class Simulator(QMainWindow):
         super(Simulator, self).__init__()
 
         self.editFlag = False
+        self.sim_on = False
+        
 
         self.course = CourseMaker()
         self.course.updated.connect(self.updateStatus)
+
+        if os.path.exists('lastCourse'):
+            file = open('lastCourse', 'r')
+            self.course.gui_points = []
+            for line in file:
+                point = line.split()
+                test = (int(float(point[0])),int(float(point[1])))
+                self.course.gui_points.append(test)
+            file.close()
+            self.course.update()
+
         self.initUI()
 
     def updateStatus(self):
@@ -208,6 +267,8 @@ class Simulator(QMainWindow):
             self.course.runBM()
 
     def runLaneKeeping(self):
+        if not self.course.bm_on:
+            self.runBoundaryMap()
         if self.course.lk_on:
             self.lk_button.setText('Run Lane Keeping')
             self.course.stopLK()
@@ -246,8 +307,31 @@ class Simulator(QMainWindow):
             test = (int(point[0]),int(point[1]))
             self.course.gui_points.append(test)
         file.close()
-        self.course.enableEdits(False)
         self.course.update()
+
+    def closeEvent(self, event):
+        file = open('lastCourse', 'w')
+        for p in self.course.gui_points:
+            file.write(str(p[0])+' '+str(p[1]) + '\n')
+        file.close()
+
+        if self.sim_on:
+            self.course.sim_on = False
+            self.sim_thread.join(0)
+
+    def runSim(self):
+        if self.sim_on:
+            self.run_button.setText('Run Simulation')
+            self.course.sim_on = False
+            self.sim_thread.join(0)
+            self.sim_on = False
+        else:
+            self.course.sim_on = True
+            self.run_button.setText('Stop Simulation')
+            self.sim_thread = threading.Thread(target=self.course.runSim)
+            self.sim_thread.start()
+            self.sim_on = True
+
 
     def initUI(self):
 
@@ -273,11 +357,19 @@ class Simulator(QMainWindow):
         alg_label= QLabel("Algorithms")
 
         self.bm_button = QPushButton('Run Boundary Mapping')
-        self.bm_button.clicked.connect(self.runBoundaryMap)
-
         self.lk_button = QPushButton('Run Lane Keeping')
+
+        self.bm_button.clicked.connect(self.runBoundaryMap)
         self.lk_button.clicked.connect(self.runLaneKeeping)
 
+        ###--- Simulation related buttons ---###
+        sim_label= QLabel('Simulation')
+
+        self.step_button = QPushButton('Step Forward')
+        self.run_button = QPushButton('Run Simulation')
+
+        self.step_button.clicked.connect(self.course.stepSim)
+        self.run_button.clicked.connect(self.runSim)
 
         ###--- Status related buttons ---###
         status_label = QLabel('Status')
@@ -292,14 +384,21 @@ class Simulator(QMainWindow):
         menuLayout = QVBoxLayout()
         menuLayout.setAlignment(Qt.AlignTop)
         menuLayout.addWidget(menu_label)
+        # Map
         menuLayout.addWidget(map_label)
         menuLayout.addWidget(self.edit_button)
         menuLayout.addWidget(clear_button)
         menuLayout.addWidget(save_button)
         menuLayout.addWidget(load_button)
+        # Algorithm
         menuLayout.addWidget(alg_label)
         menuLayout.addWidget(self.bm_button)
         menuLayout.addWidget(self.lk_button)
+        # Simulation
+        menuLayout.addWidget(sim_label)
+        menuLayout.addWidget(self.step_button)
+        menuLayout.addWidget(self.run_button)
+        # Status
         menuLayout.addWidget(status_label)
         menuLayout.addWidget(steering_label)
         menuLayout.addWidget(self.steering_value)
