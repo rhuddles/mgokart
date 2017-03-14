@@ -55,7 +55,7 @@ def make_plots(cones, left_boundary, right_boundary, vec,
 
     plt.legend(
         (orange, red, dashed, black, end, blue, green),
-        ('Left Boundary', 'Right Boundary', 'Regression Line', 'Trend Line', 'Boundary Endpoint', 'Detected Cone', 'Vehicle Position'),
+        ('Left Boundary', 'Right Boundary', 'Endpoint Vector', 'Trend Line', 'Boundary Endpoint', 'Detected Cone', 'Vehicle Position'),
         loc='upper left'
     )
 
@@ -103,7 +103,7 @@ if __name__ == '__main__':
         files = ['data/' + path for path in sorted(os.listdir('data'))]
 
     for filename in files:
-        data = parse_csv_data(filename)
+        data = parse_csv_data(filename, 200)
 
         for frame in data:
             cones = get_cones(frame)
