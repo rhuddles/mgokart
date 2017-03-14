@@ -4,7 +4,7 @@ from parse_data import *
 from filter_data import *
 from finish_line import detect_finish_line
 from greedy_boundary_mapping import *
-from utility import separate_xy
+from utility import *
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -68,20 +68,12 @@ def get_steering_command(path, speed, dt, plot=False):
 
     return math.degrees(theta)
 
-def flip_xy(x, y):
-    return (y, [-a for a in x])
-
-def separate_and_flip(points):
-    return flip_xy(*separate_xy(points))
-
 def boundaries_to_steering(left, right, speed=1000, dt=0.3):
     # Fit left line
-    left_xs, left_ys = separate_and_flip(left)
-    left_coefs = np.polyfit(left_xs, left_ys, 2)
+    left_coefs = regression(left)
 
     # Fit right line
-    right_xs, right_ys = separate_and_flip(right)
-    right_coefs = np.polyfit(right_xs, right_ys, 2)
+    right_coefs = regression(right)
 
     # Calculate center line
     path_coefs = np.add(left_coefs, right_coefs) / 2
@@ -113,12 +105,10 @@ if __name__ == '__main__':
 
             # TODO make nice
             # Fit left line
-            left_xs, left_ys = separate_and_flip(left_boundary)
-            left_coefs = np.polyfit(left_xs, left_ys, 2)
+            left_coefs = regression(left_boundary)
 
             # Fit right line
-            right_xs, right_ys = separate_and_flip(right_boundary)
-            right_coefs = np.polyfit(right_xs, right_ys, 2)
+            right_coefs = regression(right_boundary)
 
             # Calculate center line
             path_coefs = np.add(left_coefs, right_coefs) / 2
@@ -133,6 +123,8 @@ if __name__ == '__main__':
             print('Turn %f degrees' % angle)
 
             # plot just everything
+            left_xs, left_ys = separate_and_flip(left_boundary)
+            right_xs, right_ys = separate_and_flip(right_boundary)
             blue = plt.scatter(cone_xs, cone_ys, color='blue', marker='^')
             orange, = plt.plot(left_xs, left_ys, color='orange')
             red, = plt.plot(right_xs, right_ys, color='red')
