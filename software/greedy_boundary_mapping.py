@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from data import left_turn_data, right_turn_data, straight_data
 from filter_data import get_cones
 from matplotlib import pyplot as plt
 from operator import itemgetter
