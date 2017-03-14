@@ -18,7 +18,7 @@ def predict_next_pos(speed, dt):
     return np.array([speed * dt, 0])
 
 def get_closest_point_on_curve(path, off_curve_pt, min_x=0, max_x=5000):
-    xs = np.linspace(min_x, max_x, max_x + min_x)
+    xs = np.linspace(min_x, max_x, abs(max_x) + abs(min_x))
     curve_pts = [(x, path(x)) for x in xs]
 
     return min(curve_pts, key=lambda pt: dist(off_curve_pt, pt))
@@ -31,17 +31,41 @@ def get_waypoint(path, speed):
     on_path_pt = get_closest_point_on_curve(path, off_path_pt)
     return on_path_pt
 
-def get_steering_command(path, speed, dt):
-    next_pos = predict_next_pos(speed, dt)
+def dist_from_center(path):
+    pos = [0., 0.]
+    center = get_closest_point_on_curve(path, pos, min_x=-5000, max_x=5000)
+    return dist(pos, center)
 
-    # choose waypoint along path that we eventually want to get to
-    waypoint = get_waypoint(path, speed)
+def get_steering_command(path, speed, dt, plot=False):
+    # tune distance of this point, further = less steep turning
+    next_pos = predict_next_pos(speed, dt * 7)
 
-    # TODO needs a sign
-    return angle_between((1, 0), waypoint)
+    # vector from vehicle state to reference state
+    error = get_closest_point_on_curve(path, next_pos, min_x=-5000, max_x=5000)
 
+    # coefficient of quadratic path
+    A = error[1] / error[0]**2
 
-    return angle_between((1, 0), chosen_pt)
+    # plot quadratic path
+    if plot:
+        xs = np.linspace(0, 2000, 2000)
+        ys = [A * (x**2) for x in xs]
+        plt.plot(xs, ys, 'b')
+
+    # calculate desired vehicle speed and angular velocity
+    new_speed = math.sqrt(speed**2 * (1 + (4 * A**2 * (speed * dt))))
+    w = (2 * A * speed**3) / (new_speed**2)
+
+    # yea sure
+    wheelbase = 942
+
+    # steering angle = (angular velocity * wheelbase) / velocity
+    theta = (w * wheelbase) / speed
+
+    # we say positive angles are clockwise rotations
+    theta *= -1
+
+    return math.degrees(theta)
 
 def flip_xy(x, y):
     return (y, [-a for a in x])
@@ -63,10 +87,7 @@ def boundaries_to_steering(left, right, speed=1000, dt=0.3):
     path = np.poly1d(path_coefs)
 
     # make a decision for once in your life gavin
-    next_pos = predict_next_pos(speed, dt)
-    x = math.degrees(get_steering_command(path, speed, dt))
-    print x
-    return x
+    return get_steering_command(path, speed, dt)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
@@ -77,7 +98,9 @@ if __name__ == '__main__':
     plt.ion()
 
     for filename in files:
-        data = parse_csv_data(filename, fov=200)
+        print(filename)
+
+        data = parse_csv_data(filename, fov=200)[300:]
 
         for frame in data:
             cones = get_cones(frame)
@@ -99,15 +122,15 @@ if __name__ == '__main__':
             path_coefs = np.add(left_coefs, right_coefs) / 2
             path = np.poly1d(path_coefs)
 
-            # make a decision for once in your life gavin
+            # yea sure
             speed = 1000
             dt = 0.3
-            next_pos = predict_next_pos(speed, dt)
-            angle = get_steering_command(path, speed, dt)
-            print('Gotta turn %f degrees in some direction' % math.degrees(angle))
+
+            # make a decision for once in your life gavin
+            angle = get_steering_command(path, speed, dt, plot=True)
+            print('Turn %f degrees' % angle)
 
             # plot just everything
-            #print(filename)
             blue = plt.scatter(cone_xs, cone_ys, color='blue', marker='^')
             orange, = plt.plot(left_xs, left_ys, color='orange')
             red, = plt.plot(right_xs, right_ys, color='red')
@@ -118,7 +141,6 @@ if __name__ == '__main__':
                     max(left_xs + right_xs))
 
             green = plt.scatter(0, 0, color='green')
-            cyan = plt.scatter(next_pos[0], next_pos[1], color='cyan')
 
             # Make plot look nice for report
             plt.xlabel('Distance in millimeters')
