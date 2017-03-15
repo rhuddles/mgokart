@@ -1,64 +1,59 @@
+#!/usr/bin/env python
+'''
+MGoKart Racing Simulator
+Bobby Huddleston - rhuddles@umich.edu
+
+This simulator is used for testing algorithms and visualizing their outputs. It can be used to create test courses for the go-kart as well as visualize the detected course and analysis from real world data.
+
+Frames of reference:
+
+GUI - The origin is in the upper left corner and refers to each pixel on the screen
+  x increases to the right to self.size().width()
+  y increases down to self.size().height()
+
+Lidar - Vehicle is the origin. 1 pixel = 20 mm
+  x increases to the right of the vehicle and decreases to the left
+  y increases above the vehicle and decreases below
+'''
+
+# Python Libraries
 import math
-from operator import itemgetter
 import os
 import sys
+import threading
+import time
+import traceback
+from operator import itemgetter
 from tkFileDialog import askopenfile, asksaveasfile
 from Tkinter import Tk
-import time
-import threading
-import traceback
 
+# QT5 Libraries
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
+# MGoKart Modules
 import greedy2
 import greedy_boundary_mapping as bm
 import regression_steering as rs
 import predictive_speed as ps
 
-
-# Frames of reference:
-# 
-# GUI - The origin is in the upper left corner and refers to each pixel on the screen
-#   x increases to the right to self.size().width()
-#   y increases down to self.size().height()
-# 
-# Lidar - Vehicle is the origin. 1 pixel = 20 mm
-#   x increases to the right of the vehicle and decreases to the left
-#   y increases above the vehicle and decreases below
-
-MM_PER_PIXEL = 20
-STEPPER_SLEW = (378/4) #degrees/second
-T = .25
-
-def convertGUIToLidar(lidar_pos, gui_points):
-    """
-    Converts cones in the GUIs frame of reference to cones in the lidar's frame of reference.
-    Returns only cones within the lidar's field of view. Sorts the cones by angle starting at -135 degrees
-    lidar_pos: the position of the lidar in the GUI frame of reference given as a tuple
-    gui_points: locations of cones in the GUI frame of reference given as a list of tuples
-    """
-
-    # Cones seen by lidar
-    lidar_coords = []
-
-    # Convert from gui frame to lidar frame
-    for point in gui_points:
-        x = (point[0] - lidar_pos[0])*MM_PER_PIXEL
-        y = (lidar_pos[1] - point[1])*MM_PER_PIXEL
-
-        # Convert points to polar form and filter
-        dist = math.hypot(x,y)
-        angle = math.degrees(math.atan2(x,y))
-        if dist <= 10000 and angle > -120 and angle < 120:
-            lidar_coords.append(((x,y), dist, angle, point))
-
-    # Sort cones by angle
-    return sorted(lidar_coords,key=itemgetter(2))   
+# Constants - TODO: Move these to either class privates or expose to user
+MM_PER_PIXEL = 20 # Pixel to real world scaling
+STEPPER_SLEW = (378/4) # Speed of the stepper motor in degrees/second
+T = .25 # Simulation step size
+LIDAR_FOV = 240 # Lidar's field of view in degrees
+LIDAR_RANGE = 10000 # Lidar's filter range in millimeters
+STEERING_RANGE = 45.0 # Maximum steering wheel angle
+WHEEL_RANGE = 35.0 # Maximum wheel angle 
+VEHICLE_ACCELERATION = 5 # Max acceleration in m/s^2
+VEHICLE_DECELERATION = 5 # Max deceleration in m/s^2
 
 
 def applyTransformation(lidar_pos, gui_points, steering_angle, speed, step_size):
+    '''
+    Transforms gui points 
+    '''
 
     # Cones in transformation
     coords = []
@@ -96,17 +91,147 @@ class CourseMaker(QWidget):
 
         # Data
         self.gui_points = []
-        self.lidar_points = []
+        self.detected_cones = []
         self.left_bound = []
         self.right_bound = []
         self.wheel_angle = 0
         self.steering = 0
         self.target_steering = 0
-        self.speed = 0
+        self.target_speed = 0
 
         self.initUI()
 
     updated = pyqtSignal()
+
+
+    ###--- Algorithmic Methods ---###
+
+    def lidarScan():
+        """
+        Converts cones in the GUIs frame of reference to cones in the lidar's frame of reference and gets those in the lidar's field of view
+        Sets detected_cones with only cones within the lidar's field of view. Sorts the cones by angle starting at -135 degrees.
+        """
+
+        # Get cones seen by lidar
+        lidar_coords = []
+        for point in self.gui_points:
+            # Convert from gui frame to lidar frame
+            x = (point[0] - self.lidar_pos[0])*MM_PER_PIXEL
+            y = (self.lidar_pos[1] - point[1])*MM_PER_PIXEL
+            # Convert points to polar form and filter
+            dist = math.hypot(x,y)
+            angle = math.degrees(math.atan2(x,y))
+            if dist <= LIDAR_RANGE and abs(angle) < LIDAR_FOV/2:
+                lidar_coords.append(((x,y), dist, angle, point))
+
+        # Sort cones by angle
+        self.detected_cones = sorted(lidar_coords,key=itemgetter(2))
+
+    def boundaryMapping(self):
+        '''
+        Runs the boundary mapping algorithm. Sets left and right bound lists.
+        '''
+
+        #TODO: Move this to execution thread
+        self.detected_cones = self.lidarScan() 
+
+        # Error Checking
+        if len(self.detected_cones) < 2:
+            print('Not enough cones detected! Implement short term memory if you want this to work')
+            self.left_bound = []
+            self.right_bound = []
+            return
+
+        # Format cones list for algorithm
+        cones_list = []
+        for point in self.detected_cones:
+            cones_list.append(point[0])
+        
+        # Run boundary mapping algorithm
+        try:
+            self.left_bound, self.right_bound = bm.create_boundary_lines(cones_list)
+        except Exception, e:
+            print('Error running boundary mapping!')
+            traceback.print_exc()
+
+        # TODO: move to execution thread
+        self.update()
+
+    def laneKeeping(self):
+        '''
+        Runs the lane keeping algorithm. Sets target steering angle and vehicle speed.
+        '''
+
+        # Error checking
+        if not len(self.left_bound) or not len(self.right_bound):
+            print('Two boundaries not detected! Implement short term memory if you want this to work')
+            self.target_steering = 0
+            self.target_speed = 0
+            return
+
+        # Run algorithm
+        try: 
+            self.target_steering = rs.boundaries_to_steering(list(self.left_bound), list(self.right_bound))
+            
+            # Limit steering angle and print error
+            if self.target_steering > STEERING_RANGE:
+                print('Steering angle outside of bounds: ' +  str(self.target_steering))
+                self.target_steering = STEERING_RANGE
+            elif self.target_steering < -STEERING_RANGE:
+                print('Steering angle outside of bounds: ' +  str(self.target_steering))
+                self.target_steering = -STEERING_RANGE
+        except Exception, e:
+            print('Error running lane keeping (steering)!')
+            traceback.print_exc()
+            self.target_steering = 0
+
+        
+        try:
+            self.target_speed = ps.get_next_speed(list(self.left_bound), list(self.right_bound))
+        except Exception, e:
+            print('Error running lane keeping (speed)!')
+            traceback.print_exc()
+            self.target_speed = 0
+
+        # TODO: Move to execution thread Update gui
+        self.updated.emit()
+
+    # TODO: Model vehicle heading, not just steering angle.
+    def updateActuators(self):
+        '''
+        Updates vehicle actuators. Used to model mechanical lag in the system.
+        '''
+
+        # Updates steering angle and wheel angle
+        if abs(self.target_steering - self.steering) < (STEPPER_SLEW*T):
+            self.steering = self.target_steering
+        elif self.target_steering - self.steering < 0:
+            self.steering = self.target_steering + (STEPPER_SLEW*T)
+        else:
+            self.steering = self.target_steering - (STEPPER_SLEW*T)
+        self.wheel_angle = self.steering*WHEEL_RANGE/STEERING_RANGE
+
+        # TODO: Add vehicle position and angle change
+
+        # Update vehicle speed
+
+
+    def stepSim(self):
+        
+        self.updateActuators()
+        self.gui_points = applyTransformation(self.lidar_pos, self.gui_points, self.wheel_angle, self.target_speed, T)
+        self.boundaryMapping()
+        self.laneKeeping()
+        self.update()
+
+    def runSim(self):
+        print "running thread"
+        while self.sim_on:
+            self.stepSim()
+            # time.sleep(.1/)
+
+
+    ###--- Operational Methods ---###
 
     def enableEdits(self, flag):
         self.edits = flag
@@ -118,65 +243,11 @@ class CourseMaker(QWidget):
         self.gui_points = []
         self.update()
 
-    def runBM(self):
-        self.bm_on = True
-        cones_list = []
+    
 
-        self.lidar_points = convertGUIToLidar(self.lidar_pos, self.gui_points)
+    
 
-        for point in self.lidar_points:
-            cones_list.append(point[0])
-        try:
-            self.left_bound, self.right_bound = bm.create_boundary_lines(cones_list)
-        except Exception, e:
-            print('Error Running boundary mapping')
-            traceback.print_exc()
-
-        self.update()
-
-    def runLK(self):
-        self.lk_on = True
-        self.target_steering= rs.boundaries_to_steering(list(self.left_bound), list(self.right_bound))
-        if self.target_steering > 45:
-            self.target_steering = 45
-        elif self.target_steering < -45:
-            self.target_steering = -45
-        self.speed = ps.get_next_speed(list(self.left_bound), list(self.right_bound))
-        self.updated.emit()
-        self.update()
-
-    def stopBM(self):
-        self.bm_on=False
-        self.update()
-
-    def stopLK(self):
-        self.lk_on=False
-        self.update()
-
-    def moveStepper(self):
-
-        if abs(self.target_steering - self.steering) < (STEPPER_SLEW*T):
-            self.steering = self.target_steering
-        elif self.target_steering - self.steering < 0:
-            self.steering = self.target_steering + (STEPPER_SLEW*T)
-        else:
-            self.steering = self.target_steering - (STEPPER_SLEW*T)
-
-        self.wheel_angle = self.steering*35.0/45
-
-    def stepSim(self):
-        
-        self.moveStepper()
-        self.gui_points = applyTransformation(self.lidar_pos, self.gui_points, self.wheel_angle, self.speed, T)
-        self.runBM()
-        self.runLK()
-        self.update()
-
-    def runSim(self):
-        print "running thread"
-        while self.sim_on:
-            self.stepSim()
-            # time.sleep(.1/)
+    
 
     def removeLast(self):
         if len(self.gui_points) and self.edits:
@@ -218,15 +289,15 @@ class CourseMaker(QWidget):
             # Draw steering angle
             paint.setPen(Qt.black)
             paint.pen().setWidth(5)
-            x = math.sin(math.radians(self.steering))*self.speed*2000/MM_PER_PIXEL
-            y = math.cos(math.radians(self.steering))*self.speed*2000/MM_PER_PIXEL
+            x = math.sin(math.radians(self.steering))*self.target_speed*2000/MM_PER_PIXEL
+            y = math.cos(math.radians(self.steering))*self.target_speed*2000/MM_PER_PIXEL
             paint.drawLine(self.lidar_pos[0],self.lidar_pos[1],self.lidar_pos[0]+x,self.lidar_pos[1]-y)
 
             # Draw target steering angle
             paint.setPen(Qt.red)
             paint.pen().setWidth(5)
-            x = math.sin(math.radians(self.target_steering))*self.speed*1000/MM_PER_PIXEL
-            y = math.cos(math.radians(self.target_steering))*self.speed*1000/MM_PER_PIXEL
+            x = math.sin(math.radians(self.target_steering))*self.target_speed*1000/MM_PER_PIXEL
+            y = math.cos(math.radians(self.target_steering))*self.target_speed*1000/MM_PER_PIXEL
             paint.drawLine(self.lidar_pos[0],self.lidar_pos[1],self.lidar_pos[0]+x,self.lidar_pos[1]-y)
 
         # Draw cones
@@ -242,7 +313,7 @@ class CourseMaker(QWidget):
 
         # Draw boundary cones
         if self.bm_on:
-            for p in self.lidar_points:
+            for p in self.detected_cones:
                 if self.left_bound.count(p[0]):
                     paint.setBrush(Qt.blue)
                 elif self.right_bound.count(p[0]):
@@ -294,7 +365,7 @@ class Simulator(QMainWindow):
 
     def updateStatus(self):
         self.steering_value.setText(str(self.course.steering))
-        self.speed_value.setText(str(self.course.speed))
+        self.target_speed_value.setText(str(self.course.speed))
 
     def runBoundaryMap(self):
         if self.course.bm_on:
@@ -302,7 +373,7 @@ class Simulator(QMainWindow):
             self.course.stopBM()
         else:
             self.bm_button.setText('Clear Boundary Mapping')
-            self.course.runBM()
+            self.course.boundaryMapping()
 
     def runLaneKeeping(self):
         if not self.course.bm_on:
@@ -312,7 +383,7 @@ class Simulator(QMainWindow):
             self.course.stopLK()
         else:
             self.lk_button.setText('Clear Lane Keeping')
-            self.course.runLK()
+            self.course.laneKeeping()
 
     def editMap(self):
         if self.editFlag:
@@ -416,7 +487,7 @@ class Simulator(QMainWindow):
         steering_label = QLabel('Steering Angle (degrees):')
         self.steering_value = QLabel('0')
         speed_label = QLabel('Speed (m/s):')
-        self.speed_value = QLabel('0')
+        self.target_speed_value = QLabel('0')
 
 
         ###--- Menu Layout ---###
@@ -444,7 +515,7 @@ class Simulator(QMainWindow):
         menuLayout.addWidget(steering_label)
         menuLayout.addWidget(self.steering_value)
         menuLayout.addWidget(speed_label)
-        menuLayout.addWidget(self.speed_value)
+        menuLayout.addWidget(self.target_speed_value)
 
         menuWidget = QWidget()
         menuWidget.setLayout(menuLayout)
