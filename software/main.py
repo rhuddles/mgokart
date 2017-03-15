@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 # from lidar_comms.takescan import enable_laser
-from parse_data import parse_csv_data
 from filter_data import get_cones
 from finish_line import detect_finish_line
 from greedy_boundary_mapping import create_boundary_lines
+from kalman import predict, update
+from parse_data import parse_csv_data
 from predictive_speed import get_next_speed
 from regression_steering import boundaries_to_steering
 from utility import regression
@@ -28,9 +29,10 @@ def init_boundaries():
     pass
 
 def set_boundaries(left_boundary, right_boundary):
-    LEFT_BOUNDARY = left_boundary
-    LEFT_POLYS = regression(left_boundary)
-    RIGHT_BOUNDARY = right_boundary
+    global LEFT_BOUNDARY, LEFT_COEFS, RIGHT_BOUNDARY, RIGHT_COEFS
+    LEFT_BOUNDARY = list(left_boundary)
+    LEFT_COEFS = regression(left_boundary)
+    RIGHT_BOUNDARY = list(right_boundary)
     RIGHT_COEFS = regression(right_boundary)
 
 if __name__ == '__main__':
@@ -48,12 +50,21 @@ if __name__ == '__main__':
         # frame = get_world_points(distances, FOV)
         # --
 
+        # TODO: get speed and steering from ME's
+        curr_speed = 5 # m/s
+        curr_bearing = 0 # degrees
+
         # For csv file use
         frame = parse_csv_data(filename, FOV)[0]
         # --
 
+        # Predict new boundary locations
+        # predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
+        #         curr_speed, curr_bearing)
+        # set_boundaries(predicted_left, predicted_right)
+
         # Filtering
-        cones = get_cones(frame)
+        cones = get_cones(frame, LEFT_COEFS, RIGHT_COEFS)
 
         # Finish line detection
         if detect_finish_line(cones):
@@ -62,13 +73,15 @@ if __name__ == '__main__':
 
         # Boundary mapping
         left_boundary, right_boundary = create_boundary_lines(cones)
+        left_boundary, right_boundary = update(left_boundary, right_boundary,
+                LEFT_BOUNDARY, RIGHT_BOUNDARY)
         set_boundaries(left_boundary, right_boundary)
 
         # Lane keeping (speed)
-        speed = get_next_speed(left_boundary, right_boundary)
+        speed = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY)
 
         # Lane keeping (steering)
-        bearing = boundaries_to_steering(left_boundary, right_boundary)
+        bearing = boundaries_to_steering(LEFT_BOUNDARY, RIGHT_BOUNDARY)
 
         print 'Speed:', speed
         print 'Bearing:', bearing
