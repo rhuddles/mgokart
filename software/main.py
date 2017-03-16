@@ -5,6 +5,7 @@ from filter_data import get_cones
 from finish_line import detect_finish_line
 from greedy_boundary_mapping import create_boundary_lines
 from kalman import predict, update
+from me_comms import *
 from parse_data import parse_csv_data
 from predictive_speed import get_next_speed
 from regression_steering import boundaries_to_steering
@@ -15,6 +16,10 @@ import sys
 
 FOV = 200 # The LIDAR's real-world field of view
 
+# Ports for socket comms with me's
+TO_MES = 8090
+FROM_MES = 8091
+
 LAP_COUNT = 0 # Current lap
 
 # Memory of left and right boundaries and their regressions
@@ -24,6 +29,7 @@ LEFT_COEFS = []
 
 RIGHT_BOUNDARY = []
 RIGHT_COEFS = []
+
 
 def init_boundaries():
     pass
@@ -43,6 +49,7 @@ if __name__ == '__main__':
 
     # laser = enable_laser()
     init_boundaries()
+    listen_sock = init_listen_socket(FROM_MES)
 
     for filename in files:
         # For LIDAR use
@@ -50,18 +57,18 @@ if __name__ == '__main__':
         # frame = get_world_points(distances, FOV)
         # --
 
-        # TODO: get speed and steering from ME's
-        curr_speed = 5 # m/s
-        curr_bearing = 0 # degrees
+        # curr_speed, curr_bearing = get_speed_steering(listen_sock, 64)
+        curr_speed, curr_bearing = 0, 0
 
         # For csv file use
         frame = parse_csv_data(filename, FOV)[0]
         # --
 
         # Predict new boundary locations
-        # predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
-        #         curr_speed, curr_bearing)
-        # set_boundaries(predicted_left, predicted_right)
+        predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
+                curr_speed, curr_bearing)
+        if predicted_left and predicted_right:
+            set_boundaries(predicted_left, predicted_right)
 
         # Filtering
         cones = get_cones(frame, LEFT_COEFS, RIGHT_COEFS)
@@ -85,5 +92,8 @@ if __name__ == '__main__':
 
         print 'Speed:', speed
         print 'Bearing:', bearing
+        print '%06.2f,%06.2f' % (speed, bearing)
 
-        # TODO: Write to socket
+        # Write to socket
+        # send_socket(TO_MES, '%06.2f,%06.2f' % (speed, bearing))
+

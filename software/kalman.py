@@ -24,7 +24,7 @@ def update(new_left, new_right, old_left, old_right):
     updated_left = []
     updated_right  = []
 
-    if old_left == [] or old_right == []:
+    if not old_left or not old_right:
         updated_left = new_left
         updated_right = new_right
 
