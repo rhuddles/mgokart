@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     # laser = enable_laser()
     init_boundaries()
-    connection = init_connection(ME_PORT)
+    # connection = init_connection(ME_PORT)
 
     for filename in files:
         # For LIDAR use
@@ -94,7 +94,6 @@ if __name__ == '__main__':
 
         print 'Speed:', speed
         print 'Bearing:', bearing
-        print '%06.2f,%06.2f' % (speed, bearing)
 
         # Write to socket
         # send(ME_PORT, '%05.1f,%05.1f' % (speed, bearing))
