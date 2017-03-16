@@ -2,24 +2,24 @@
 
 import socket
 
-def init_listen_socket(port):
+def init_connection(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(('localhost', port))
     sock.listen(1)
-    return sock
+    conn, addr = sock.accept()
+    return conn
 
-def get_speed_steering(sock, size):
+def receive(conn, size):
         # assuming msg format is 'speed,bearing'
-        conn, addr = sock.accept()
         msg = conn.recv(size)
+        print 'msg:', msg
         speed, bearing = msg.split(',')
+        print 'speed:', speed
+        print 'bearing:', bearing
         return float(speed), float(bearing)
 
-def send_socket(port, msg):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(('localhost', port))
-
+def send(conn, msg):
     # Checking to make sure right number of bytes sent
-    while sock.send(msg) != len(msg):
+    while conn.send(msg) != len(msg):
         pass
 

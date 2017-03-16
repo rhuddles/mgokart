@@ -14,12 +14,13 @@ from hokuyo import enable_laser
 
 import os
 import sys
+import serial
 
 FOV = 200 # The LIDAR's real-world field of view
 
 # Ports for socket comms with me's
-TO_MES = 8090
-FROM_MES = 8091
+ME_PORT = 8090
+MSG_LEN = 11
 
 LAP_COUNT = 0 # Current lap
 
@@ -50,7 +51,7 @@ if __name__ == '__main__':
 
     # laser = enable_laser()
     init_boundaries()
-    listen_sock = init_listen_socket(FROM_MES)
+    connection = init_connection(ME_PORT)
 
     for filename in files:
         # For LIDAR use
@@ -58,7 +59,7 @@ if __name__ == '__main__':
         # frame = get_world_points(distances, FOV)
         # --
 
-        # curr_speed, curr_bearing = get_speed_steering(listen_sock, 64)
+        # curr_speed, curr_bearing = receive(conn, MSG_LEN)
         curr_speed, curr_bearing = 0, 0
 
         # For csv file use
@@ -96,5 +97,5 @@ if __name__ == '__main__':
         print '%06.2f,%06.2f' % (speed, bearing)
 
         # Write to socket
-        # send_socket(TO_MES, '%06.2f,%06.2f' % (speed, bearing))
+        # send(ME_PORT, '%05.1f,%05.1f' % (speed, bearing))
 
