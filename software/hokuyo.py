@@ -1,11 +1,24 @@
-import threading
-import traceback
+import serial
+import serial.tools.list_ports as list_ports
 import sys
+import threading
 import time
-
+import traceback
 
 __author__ = 'paoolo'
 
+
+def enable_laser():
+    port = serial.Serial(list_ports.comports()[0][0])
+    port.isOpen()
+
+    laser = Hokuyo(port, model_name = 'UTM-30LX')
+    laser.enable_scanning(True)
+
+    laser.laser_off()
+    laser.laser_on()
+
+    return laser
 
 def chunks(l, n):
     for i in range(0, len(l), n):
@@ -70,6 +83,8 @@ class Hokuyo(object):
         else:
             raise ValueError("Unsupported Hokuyo laser model: "+str(model_name))
 
+    def __del__(self):
+        self.laser_off()
 
     def __offset(self):
         count = 2

@@ -10,6 +10,7 @@ from parse_data import parse_csv_data
 from predictive_speed import get_next_speed
 from regression_steering import boundaries_to_steering
 from utility import regression
+from hokuyo import enable_laser
 
 import os
 import sys
