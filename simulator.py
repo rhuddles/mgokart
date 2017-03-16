@@ -50,54 +50,29 @@ VEHICLE_ACCELERATION = 5 # Max acceleration in m/s^2
 VEHICLE_DECELERATION = 5 # Max deceleration in m/s^2
 
 
-def applyTransformation(lidar_pos, gui_points, steering_angle, speed, step_size):
-    '''
-    Transforms gui points 
-    '''
-
-    # Cones in transformation
-    coords = []
-
-    # Convert from gui frame to lidar frame
-    for point in gui_points:
-        x = (point[0] - lidar_pos[0])*MM_PER_PIXEL
-        y = (lidar_pos[1] - point[1])*MM_PER_PIXEL
-
-        # Convert points to polar form and filter
-        dist = math.hypot(x,y)
-        angle = math.atan2(x,y)
-
-        new_angle = angle - math.radians(steering_angle)
-        new_x = dist*math.sin(new_angle)
-        new_y = dist*math.cos(new_angle) - speed*1000*step_size
-        guiX = new_x/MM_PER_PIXEL + lidar_pos[0] 
-        guiY = lidar_pos[1] - new_y/MM_PER_PIXEL
-
-        coords.append((guiX,guiY))
-
-    return coords
- 
-
 class CourseMaker(QWidget):
 
     def __init__(self):
         super(CourseMaker, self).__init__()
 
         # Flags
-        self.bm_on = False
-        self.lk_on = False
-        self.edits = False
+        self.editFlag = False
         self.sim_on = False
 
-        # Data
+        # Input data
         self.gui_points = []
+
+        # Algorithm params
         self.detected_cones = []
         self.left_bound = []
         self.right_bound = []
-        self.wheel_angle = 0
-        self.steering = 0
         self.target_steering = 0
         self.target_speed = 0
+        
+        # Vehicle params
+        self.wheel_angle = 0
+        self.steering = 0
+        self.speed = 0
 
         self.initUI()
 
@@ -106,7 +81,7 @@ class CourseMaker(QWidget):
 
     ###--- Algorithmic Methods ---###
 
-    def lidarScan():
+    def lidarScan(self):
         """
         Converts cones in the GUIs frame of reference to cones in the lidar's frame of reference and gets those in the lidar's field of view
         Sets detected_cones with only cones within the lidar's field of view. Sorts the cones by angle starting at -135 degrees.
@@ -131,10 +106,6 @@ class CourseMaker(QWidget):
         '''
         Runs the boundary mapping algorithm. Sets left and right bound lists.
         '''
-
-        #TODO: Move this to execution thread
-        self.detected_cones = self.lidarScan() 
-
         # Error Checking
         if len(self.detected_cones) < 2:
             print('Not enough cones detected! Implement short term memory if you want this to work')
@@ -185,7 +156,6 @@ class CourseMaker(QWidget):
             traceback.print_exc()
             self.target_steering = 0
 
-        
         try:
             self.target_speed = ps.get_next_speed(list(self.left_bound), list(self.right_bound))
         except Exception, e:
@@ -193,10 +163,33 @@ class CourseMaker(QWidget):
             traceback.print_exc()
             self.target_speed = 0
 
-        # TODO: Move to execution thread Update gui
-        self.updated.emit()
+    def moveVehicle(self):
+        '''
+        Transforms gui points into new positions based on vehicle parameters and step size
+        '''
 
-    # TODO: Model vehicle heading, not just steering angle.
+        # Cones in transformation
+        coords = []
+
+        # Convert from gui frame to lidar frame
+        for point in self.gui_points:
+            x = (point[0] - self.lidar_pos[0])*MM_PER_PIXEL
+            y = (self.lidar_pos[1] - point[1])*MM_PER_PIXEL
+
+            # Convert points to polar form and filter
+            dist = math.hypot(x,y)
+            angle = math.atan2(x,y)
+
+            new_angle = angle - math.radians(self.steering)
+            new_x = dist*math.sin(new_angle)
+            new_y = dist*math.cos(new_angle) - self.speed*1000*T
+            guiX = new_x/MM_PER_PIXEL + self.lidar_pos[0] 
+            guiY = self.lidar_pos[1] - new_y/MM_PER_PIXEL
+
+            coords.append((guiX,guiY))
+
+        self.gui_points = coords
+
     def updateActuators(self):
         '''
         Updates vehicle actuators. Used to model mechanical lag in the system.
@@ -211,59 +204,84 @@ class CourseMaker(QWidget):
             self.steering = self.target_steering - (STEPPER_SLEW*T)
         self.wheel_angle = self.steering*WHEEL_RANGE/STEERING_RANGE
 
+        # Update vehicle speed
+        if self.speed > self.target_speed:
+            if self.speed - (VEHICLE_DECELERATION*T) > self.target_speed:
+                self.speed = self.speed - (VEHICLE_DECELERATION*T)
+            else:
+                self.speed = self.target_speed
+        else:
+            if self.speed + (VEHICLE_ACCELERATION*T) < self.target_speed:
+                self.speed = self.speed + (VEHICLE_ACCELERATION*T)
+            else:
+                self.speed = self.target_speed
+
         # TODO: Add vehicle position and angle change
 
-        # Update vehicle speed
-
-
     def stepSim(self):
+        '''
+        Simulates a single step, moving the vehicle and running algorithms on the new location
+        '''
         
+        # Simulate
+        self.moveVehicle()
         self.updateActuators()
-        self.gui_points = applyTransformation(self.lidar_pos, self.gui_points, self.wheel_angle, self.target_speed, T)
+        self.lidarScan()
         self.boundaryMapping()
         self.laneKeeping()
+        
+        # Update
         self.update()
+        self.updated.emit()
 
     def runSim(self):
-        print "running thread"
+        '''
+        Run simulation continuously until stopped
+        '''
         while self.sim_on:
             self.stepSim()
-            # time.sleep(.1/)
 
 
     ###--- Operational Methods ---###
 
     def enableEdits(self, flag):
-        self.edits = flag
+        '''
+        Enables or disables map editing mode based on flag
+        '''
+        self.editFlag = flag
         self.update()
 
     def clearMap(self):
-        self.bm_on = False
-        self.lk_on = False
-        self.gui_points = []
-        self.update()
+        '''
+        Clears all input points from map. Editing must be enabled for this to work.
+        '''
+        if self.editFlag:
+            self.gui_points = []
+            self.update()
 
-    
-
-    
-
-    
-
-    def removeLast(self):
-        if len(self.gui_points) and self.edits:
+    def undoPlaceCone(self):
+        '''
+        Clears the last cone to be placed
+        '''
+        if len(self.gui_points) and self.editFlag:
             self.gui_points.pop()
             self.update()
         
-    # Draws all selected points on map
     def paintEvent(self, event):
+        '''
+        Draws all elements on the course. Called by update
+        '''
 
         # Get lidar position
-        self.lidar_pos = (self.size().width()/2,4*self.size().height()/5)
+        self.lidar_pos = (self.size().width()/2,self.size().height()/2)
         
         # Sizes
-        cone_rad = 10
+        cone_rad = 250.0/MM_PER_PIXEL
         car = 20
-        lidar_range = 500
+        lidar_range = float(LIDAR_RANGE)/MM_PER_PIXEL
+        blind_angle = (360 - LIDAR_FOV)/2
+        dy = math.cos(math.radians(blind_angle))*LIDAR_RANGE/MM_PER_PIXEL
+        dx = math.sin(math.radians(blind_angle))*LIDAR_RANGE/MM_PER_PIXEL
 
         # Begin painting
         paint = QPainter()
@@ -274,31 +292,28 @@ class CourseMaker(QWidget):
         paint.setBrush(Qt.green)
         paint.drawEllipse(QPoint(self.lidar_pos[0], self.lidar_pos[1]), lidar_range, lidar_range)
 
+        # Draw blind spot
+        paint.setBrush(Qt.red)
+        rectangle = QRect(self.lidar_pos[0] - lidar_range,self.lidar_pos[1] - lidar_range, 2*lidar_range, 2*lidar_range)
+        paint.drawPie(rectangle, ((LIDAR_FOV/2)+90) * 16, (360-LIDAR_FOV) * 16);
+
         # Draw Car
-        fov = QPolygon()
         paint.setBrush(Qt.black)
         paint.drawRect(self.lidar_pos[0] - car/2, self.lidar_pos[1] - car/2, car, car)
-        paint.setBrush(Qt.red)
-        fov.append(QPoint(self.lidar_pos[0], self.lidar_pos[1]))
-        fov.append(QPoint(self.lidar_pos[0]+(self.size().height() - self.lidar_pos[1]), self.size().height()))
-        fov.append(QPoint(self.lidar_pos[0]-(self.size().height() - self.lidar_pos[1]), self.size().height()))
-        paint.drawPolygon(fov)
+        
+        # Draw steering angle
+        paint.setPen(Qt.black)
+        paint.pen().setWidth(50)
+        x = math.sin(math.radians(self.steering))*self.target_speed*2000/MM_PER_PIXEL
+        y = math.cos(math.radians(self.steering))*self.target_speed*2000/MM_PER_PIXEL
+        paint.drawLine(self.lidar_pos[0],self.lidar_pos[1],self.lidar_pos[0]+x,self.lidar_pos[1]-y)
 
-        # Lane Keeping
-        if self.lk_on:
-            # Draw steering angle
-            paint.setPen(Qt.black)
-            paint.pen().setWidth(5)
-            x = math.sin(math.radians(self.steering))*self.target_speed*2000/MM_PER_PIXEL
-            y = math.cos(math.radians(self.steering))*self.target_speed*2000/MM_PER_PIXEL
-            paint.drawLine(self.lidar_pos[0],self.lidar_pos[1],self.lidar_pos[0]+x,self.lidar_pos[1]-y)
-
-            # Draw target steering angle
-            paint.setPen(Qt.red)
-            paint.pen().setWidth(5)
-            x = math.sin(math.radians(self.target_steering))*self.target_speed*1000/MM_PER_PIXEL
-            y = math.cos(math.radians(self.target_steering))*self.target_speed*1000/MM_PER_PIXEL
-            paint.drawLine(self.lidar_pos[0],self.lidar_pos[1],self.lidar_pos[0]+x,self.lidar_pos[1]-y)
+        # Draw target steering angle
+        paint.setPen(Qt.red)
+        paint.pen().setWidth(50)
+        x = math.sin(math.radians(self.target_steering))*self.target_speed*1000/MM_PER_PIXEL
+        y = math.cos(math.radians(self.target_steering))*self.target_speed*1000/MM_PER_PIXEL
+        paint.drawLine(self.lidar_pos[0],self.lidar_pos[1],self.lidar_pos[0]+x,self.lidar_pos[1]-y)
 
         # Draw cones
         paint.setBrush(Qt.darkRed)
@@ -306,33 +321,35 @@ class CourseMaker(QWidget):
             paint.drawEllipse(QPoint(p[0],p[1]), cone_rad, cone_rad)
 
         # Give size hint if editing enabled
-        if self.edits and len(self.gui_points):
+        if self.editFlag and len(self.gui_points):
             paint.setPen(Qt.darkBlue)
             paint.setBrush(Qt.transparent)
             paint.drawEllipse(QPoint(self.gui_points[-1][0],self.gui_points[-1][1]), 5000/MM_PER_PIXEL, 5000/MM_PER_PIXEL)
 
         # Draw boundary cones
-        if self.bm_on:
-            for p in self.detected_cones:
-                if self.left_bound.count(p[0]):
-                    paint.setBrush(Qt.blue)
-                elif self.right_bound.count(p[0]):
-                    paint.setBrush(Qt.darkCyan)
-                else:
-                    paint.setBrush(Qt.darkRed)              
+        for p in self.detected_cones:
+            if self.left_bound.count(p[0]):
+                paint.setBrush(Qt.blue)
+            elif self.right_bound.count(p[0]):
+                paint.setBrush(Qt.darkCyan)
+            else:
+                paint.setBrush(Qt.darkRed)              
 
-                paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
+            paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
 
         paint.end()
 
     # Gets new cones
     def mouseReleaseEvent(self, QMouseEvent):
-        if self.edits:
+        if self.editFlag:
             p = QMouseEvent.pos()
             self.gui_points.append((p.x(),p.y()))
             self.update()
 
     def initUI(self):
+        '''
+        Initializes UI for the widget
+        '''
 
         # Set background
         p = self.palette()
@@ -367,24 +384,6 @@ class Simulator(QMainWindow):
         self.steering_value.setText(str(self.course.steering))
         self.target_speed_value.setText(str(self.course.speed))
 
-    def runBoundaryMap(self):
-        if self.course.bm_on:
-            self.bm_button.setText('Run Boundary Mapping')
-            self.course.stopBM()
-        else:
-            self.bm_button.setText('Clear Boundary Mapping')
-            self.course.boundaryMapping()
-
-    def runLaneKeeping(self):
-        if not self.course.bm_on:
-            self.runBoundaryMap()
-        if self.course.lk_on:
-            self.lk_button.setText('Run Lane Keeping')
-            self.course.stopLK()
-        else:
-            self.lk_button.setText('Clear Lane Keeping')
-            self.course.laneKeeping()
-
     def editMap(self):
         if self.editFlag:
             self.editFlag = False
@@ -396,8 +395,6 @@ class Simulator(QMainWindow):
         self.course.enableEdits(self.editFlag)
 
     def runClear(self):
-        self.bm_button.setText('Run Boundary Mapping')
-        self.lk_button.setText('Run Lane Keeping')
         self.course.clearMap()
 
     def save(self):
@@ -457,21 +454,10 @@ class Simulator(QMainWindow):
         load_button = QPushButton('Load Map')
 
         self.edit_button.clicked.connect(self.editMap)
-        undo_button.clicked.connect(self.course.removeLast)
+        undo_button.clicked.connect(self.course.undoPlaceCone)
         clear_button.clicked.connect(self.runClear)
         save_button.clicked.connect(self.save)
         load_button.clicked.connect(self.load)
-
-
-        ###--- Algorithm related buttons ---###
-
-        alg_label= QLabel("Algorithms")
-
-        self.bm_button = QPushButton('Run Boundary Mapping')
-        self.lk_button = QPushButton('Run Lane Keeping')
-
-        self.bm_button.clicked.connect(self.runBoundaryMap)
-        self.lk_button.clicked.connect(self.runLaneKeeping)
 
         ###--- Simulation related buttons ---###
         sim_label= QLabel('Simulation')
@@ -489,7 +475,6 @@ class Simulator(QMainWindow):
         speed_label = QLabel('Speed (m/s):')
         self.target_speed_value = QLabel('0')
 
-
         ###--- Menu Layout ---###
 
         menuLayout = QVBoxLayout()
@@ -502,10 +487,6 @@ class Simulator(QMainWindow):
         menuLayout.addWidget(clear_button)
         menuLayout.addWidget(save_button)
         menuLayout.addWidget(load_button)
-        # Algorithm
-        menuLayout.addWidget(alg_label)
-        menuLayout.addWidget(self.bm_button)
-        menuLayout.addWidget(self.lk_button)
         # Simulation
         menuLayout.addWidget(sim_label)
         menuLayout.addWidget(self.step_button)
