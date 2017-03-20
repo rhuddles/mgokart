@@ -51,33 +51,34 @@ def get_slope(cone, boundary):
 
 def plot_boundaries(cones, left_boundary, right_boundary):
     # Plot cones
-    blue = plt.scatter([cone[0] for cone in cones], [cone[1] for cone in cones], color='blue', marker='^')
+    blue = plt.scatter([cone[0] for cone in cones], [cone[1] for cone in cones], color='blue', marker='^', label='Detected Cone')
 
     # Plot left boundary
     left_xs = [point[0] for point in left_boundary]
     left_ys = [point[1] for point in left_boundary]
-    orange, = plt.plot(left_xs, left_ys, color='orange')
+    orange, = plt.plot(left_xs, left_ys, color='orange', label='Left Boundary')
 
     # Plot right boundary
     right_xs = [point[0] for point in right_boundary]
     right_ys = [point[1] for point in right_boundary]
-    red, = plt.plot(right_xs, right_ys, color='red')
+    red, = plt.plot(right_xs, right_ys, color='red', label='Right Boundary')
 
-    green = plt.scatter(0, 0, color='green')
+    green = plt.scatter(0, 0, color='green', label='Vehicle Position')
 
     # Make plot look nice for report
     plt.xlabel('Distance in millimeters')
     plt.ylabel('Distance in millimeters')
 
-    plt.legend(
-        (orange, red, blue, green),
-        ('Left Boundary', 'Right Boundary', 'Detected Cone', 'Vehicle Position'),
-        loc='upper left'
-    )
+    #plt.legend(
+    #    (orange, red, blue, green),
+    #    ('Left Boundary', 'Right Boundary', 'Detected Cone', 'Vehicle Position'),
+    #    loc='upper left'
+    #)
 
     plt.axis('equal')
-    plt.title('Greedy Boundary Mapping')
-    plt.show()
+    # plt.title('Greedy Boundary Mapping')
+    # plt.show()
+    return plt
 
 # In: List of x,y tuples - [(x, y), ...]
 # Out: Two ordered lists x, y tuples - [(x,y), ...], [(x,y), ...]

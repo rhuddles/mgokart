@@ -3,7 +3,7 @@
 # from lidar_comms.takescan import enable_laser
 from filter_data import get_cones
 from finish_line import detect_finish_line
-from greedy_boundary_mapping import create_boundary_lines
+from greedy_boundary_mapping import create_boundary_lines, plot_boundaries
 from kalman import predict, update
 from me_comms import *
 from parse_data import parse_csv_data
@@ -12,6 +12,7 @@ from regression_steering import boundaries_to_steering
 from utility import regression
 from hokuyo import enable_laser
 
+import math
 import os
 import sys
 import serial
@@ -63,38 +64,64 @@ if __name__ == '__main__':
         curr_speed, curr_bearing = 0, 0
 
         # For csv file use
-        frame = parse_csv_data(filename, FOV)[0]
+        data = parse_csv_data(filename, FOV)
         # --
 
-        # Predict new boundary locations
-        predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
-                curr_speed, curr_bearing)
-        if predicted_left and predicted_right:
-            set_boundaries(predicted_left, predicted_right)
+        for frame in data:
 
-        # Filtering
-        cones = get_cones(frame, LEFT_COEFS, RIGHT_COEFS)
+            # Predict new boundary locations
+            # predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
+            #         curr_speed, curr_bearing)
+            # if predicted_left and predicted_right:
+            #     set_boundaries(predicted_left, predicted_right)
 
-        # Finish line detection
-        if detect_finish_line(cones):
-            LAP_COUNT += 1
-            # TODO: Stop if 10...
+            # Filtering
+            cones = get_cones(frame, LEFT_COEFS, RIGHT_COEFS)
+            cones_for_plot = list(cones)
 
-        # Boundary mapping
-        left_boundary, right_boundary = create_boundary_lines(cones)
-        left_boundary, right_boundary = update(left_boundary, right_boundary,
-                LEFT_BOUNDARY, RIGHT_BOUNDARY)
-        set_boundaries(left_boundary, right_boundary)
+            # Finish line detection
+            if detect_finish_line(cones):
+                LAP_COUNT += 1
+                # TODO: Stop if 10...
 
-        # Lane keeping (speed)
-        speed = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY)
+            # Boundary mapping
+            left_boundary, right_boundary = create_boundary_lines(cones)
+            #left_boundary, right_boundary = update(left_boundary, right_boundary,
+            #        LEFT_BOUNDARY, RIGHT_BOUNDARY)
+            set_boundaries(left_boundary, right_boundary)
 
-        # Lane keeping (steering)
-        bearing = boundaries_to_steering(LEFT_BOUNDARY, RIGHT_BOUNDARY)
+            # Lane keeping (speed)
+            speed = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY)
 
-        print 'Speed:', speed
-        print 'Bearing:', bearing
+            # Lane keeping (steering)
+            bearing = boundaries_to_steering(LEFT_BOUNDARY, RIGHT_BOUNDARY)
 
-        # Write to socket
-        # send(ME_PORT, '%05.1f,%05.1f' % (speed, bearing))
+            print 'Speed:', speed
+            print 'Bearing:', bearing
+
+            # Plotting
+
+            # Plot cones and boundaries
+            plot = plot_boundaries(cones_for_plot, LEFT_BOUNDARY, RIGHT_BOUNDARY)
+
+            # Plot heading vector
+            vecx = 1000 * speed * math.sin(math.radians(bearing))
+            vecy = 1000 * speed * math.cos(math.radians(bearing))
+            plot.plot([0, vecx], [0, vecy], 'k', label='Trend Line')
+
+            # Plot reference vector
+            plot.plot([0, 0], [1000 * coord for coord in [0, 1]], '--g', label='Reference Line')
+
+            plot.legend(loc='upper left')
+
+            xmin, xmax = plot.xlim()
+            ymin, ymax = plot.ylim()
+            plot.text(xmax, ymax + 700, 'Speed: %5.2f m/s' % speed)
+            plot.text(xmax, ymax + 300, 'Bearing: %5.2f degrees' % bearing)
+            plot.draw()
+            plot.pause(0.00001)
+            plot.gcf().clear()
+
+            # Write to socket
+            # send(ME_PORT, '%05.1f,%05.1f' % (speed, bearing))
 
