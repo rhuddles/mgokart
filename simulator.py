@@ -33,8 +33,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
 # MGoKart Modules
-import greedy2
-import greedy_boundary_mapping as bm
+import boundary_mapping as bm
 import regression_steering as rs
 import predictive_speed as ps
 
@@ -115,12 +114,15 @@ class CourseMaker(QWidget):
 
         # Format cones list for algorithm
         cones_list = []
+        print 'Detected Cones: ' + str(len(self.detected_cones))
         for point in self.detected_cones:
             cones_list.append(point[0])
         
         # Run boundary mapping algorithm
         try:
             self.left_bound, self.right_bound = bm.create_boundary_lines(cones_list)
+            print 'Left Bound: ' + str(len(self.left_bound))
+            print 'Right Bound: ' + str(len(self.right_bound))
         except Exception, e:
             print('Error running boundary mapping!')
             traceback.print_exc()
@@ -257,6 +259,7 @@ class CourseMaker(QWidget):
         '''
         if self.editFlag:
             self.gui_points = []
+            self.detected_cones = []
             self.update()
 
     def undoPlaceCone(self):
@@ -273,7 +276,7 @@ class CourseMaker(QWidget):
         '''
 
         # Get lidar position
-        self.lidar_pos = (self.size().width()/2,self.size().height()/2)
+        self.lidar_pos = (self.size().width()/2,self.size().height()*4.0/5)
         
         # Sizes
         cone_rad = 250.0/MM_PER_PIXEL
@@ -325,6 +328,14 @@ class CourseMaker(QWidget):
             paint.setPen(Qt.darkBlue)
             paint.setBrush(Qt.transparent)
             paint.drawEllipse(QPoint(self.gui_points[-1][0],self.gui_points[-1][1]), 5000/MM_PER_PIXEL, 5000/MM_PER_PIXEL)
+
+        # Draw boundary cones
+        for p in self.detected_cones:
+            paint.setBrush(Qt.black)              
+
+            paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
+
+
 
         # Draw boundary cones
         for p in self.detected_cones:

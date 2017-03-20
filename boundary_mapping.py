@@ -2,7 +2,6 @@
 
 from matplotlib import pyplot as plt
 from parse_data import parse_csv_data
-from data import left_turn_data, right_turn_data, straight_data
 from operator import itemgetter
 from filter_data import *
 
@@ -75,9 +74,6 @@ def plot_boundaries(left_boundary, right_boundary):
 
 def create_boundary_lines(cones, verbose = False):
 
-    left_en = True
-    right_en = True
-
     start_left = find_lower_left_cone(cones)
     start_right = find_lower_right_cone(cones)
     
@@ -87,55 +83,74 @@ def create_boundary_lines(cones, verbose = False):
 
     while len(cones):
 
-        if left_en:
-            # Left boundary next cone
-            cone = find_closest_cone(left_bound[-1], cones)
-            if cone < 0:
-                break
+        skip_boundary = False
 
-            # Print distances
+        # Left boundary next cone
+        cone = find_closest_cone(left_bound[-1], cones)
+        if cone < 0:
+            break
+
+        # Print distances
+        if verbose:
+            print "Testing Cone at " + str(cones[cone]) + " for left boundary"
+            print "Left: " + str(dist(cones[cone], left_bound[-1]))
+            print "Right: " + str(dist(cones[cone], right_bound[-1]))
+
+        # Get change in slope
+        if len(left_bound) > 1:
+            current_vector = (cones[cone][0] - left_bound[-1][0], cones[cone][1] - left_bound[-1][1])
+            prev_vector = (left_bound[-1][0] - left_bound[-2][0], left_bound[-1][1] - left_bound[-2][1])
+            theta = angle_between(prev_vector,current_vector)
+        else: theta = 0
+        
+        # Get Distance to next cone
+        dist_left = dist(cones[cone], left_bound[-1])
+        dist_right = dist(cones[cone], right_bound[-1])
+        
+        # Test cone
+        if dist_right < dist_left or dist_left > MAX_DISTANCE_ALLOWED or theta > MAX_ANGLE_ALLOWED:
+            skip_boundary = True
             if verbose:
-                print "Testing Cone at " + str(cones[cone]) + " for left boundary"
-                print "Left: " + str(dist(cones[cone], left_bound[-1]))
-                print "Right: " + str(dist(cones[cone], right_bound[-1]))
-
-            # Test cone
-            if dist(cones[cone], right_bound[-1]) < dist(cones[cone], left_bound[-1]) and right_en:
-                if verbose:
-                    print "Left side finished"
-                left_en = False
-            else:
-                if verbose:
-                    print "Adding cone to left bound"
-                left_bound.append(cones[cone])
-                cones.pop(cone)
-
-            print 
-
-        if right_en:
-            # Right boundary next cone
-            cone = find_closest_cone(right_bound[-1], cones)
-            if cone < 0:
-                break
-     
-            # Print distances
+                print "Left side skipped"
+        else:
             if verbose:
-                print "Testing Cone at " + str(cones[cone]) + " for right boundary"
-                print "Left: " + str(dist(cones[cone], left_bound[-1]))
-                print "Right: " + str(dist(cones[cone], right_bound[-1]))
+                print "Adding cone to left bound"
+            left_bound.append(cones[cone])
+            cones.pop(cone)
 
-            # Test cone
-            if dist(cones[cone], left_bound[-1]) < dist(cones[cone], right_bound[-1]) and left_en:
-                if verbose:
-                    print "Right side finished"
-                right_en = False
-            else:
-                if verbose:
-                    print "Adding cone to right bound"
-                right_bound.append(cones[cone])
-                cones.pop(cone)
+        # Right boundary next cone
+        cone = find_closest_cone(right_bound[-1], cones)
+        if cone < 0:
+            break
+ 
+        # Print distances
+        if verbose:
+            print "Testing Cone at " + str(cones[cone]) + " for right boundary"
+            print "Left: " + str(dist(cones[cone], left_bound[-1]))
+            print "Right: " + str(dist(cones[cone], right_bound[-1]))
 
-            print
+        # Get change in slope
+        if len(right_bound) > 1:
+            current_vector = (cones[cone][0] - right_bound[-1][0], cones[cone][1] - right_bound[-1][1])
+            prev_vector = (right_bound[-1][0] - right_bound[-2][0], right_bound[-1][1] - right_bound[-2][1])
+            theta = angle_between(prev_vector,current_vector)
+        else: theta = 0
+        
+        # Get Distance to next cone
+        dist_left = dist(cones[cone], left_bound[-1])
+        dist_right = dist(cones[cone], right_bound[-1])
+
+        # Test cone
+        if dist_left < dist_right or dist_right > MAX_DISTANCE_ALLOWED or theta > MAX_ANGLE_ALLOWED:
+            if verbose:
+                print "Right side finished"
+            if skip_boundary:
+                break
+        else:
+            if verbose:
+                print "Adding cone to right bound"
+            right_bound.append(cones[cone])
+            cones.pop(cone)
 
     return left_bound, right_bound
 
