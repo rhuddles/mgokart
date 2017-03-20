@@ -22,7 +22,7 @@ DIST_THRESHOLD = 500 # Half meter
 def vector_between(a, b):
     return (b[0] - a[0], b[1] - a[1])
 
-def get_finish_line_groups(cones):
+def get_finish_line_groups(cones, verbose=False):
     groups = []
 
     i = 2
@@ -38,7 +38,8 @@ def get_finish_line_groups(cones):
         dist1 = dist(pt1, pt2)
         dist2 = dist(pt2, pt3)
 
-        print pt1, pt2, pt3, theta, dist1, dist2
+        if verbose:
+            print pt1, pt2, pt3, theta, dist1, dist2
 
         if theta < ANGLE_THRESHOLD and dist1 < DIST_THRESHOLD \
                 and dist2 < DIST_THRESHOLD:
