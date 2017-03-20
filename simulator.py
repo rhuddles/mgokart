@@ -368,8 +368,8 @@ class Simulator(QMainWindow):
         self.course = CourseMaker()
         self.course.updated.connect(self.updateStatus)
 
-        if os.path.exists('lastCourse'):
-            file = open('lastCourse', 'r')
+        if os.path.exists('courses/lastCourse'):
+            file = open('courses/lastCourse', 'r')
             self.course.gui_points = []
             for line in file:
                 point = line.split()
@@ -399,14 +399,16 @@ class Simulator(QMainWindow):
 
     def save(self):
         Tk().withdraw()
-        file = asksaveasfile()
+        file = asksaveasfile(initialdir = './courses')
+        if not file: return
         for p in self.course.gui_points:
             file.write(str(p[0])+' '+str(p[1]) + '\n')
         file.close()
 
     def load(self):
         Tk().withdraw()
-        file = askopenfile()
+        file = askopenfile(initialdir = './courses')
+        if not file: return
         self.course.gui_points = []
         for line in file:
             point = line.split()
@@ -416,7 +418,8 @@ class Simulator(QMainWindow):
         self.course.update()
 
     def closeEvent(self, event):
-        file = open('lastCourse', 'w')
+        file = open('courses/lastCourse', 'w')
+        if file == '': return
         for p in self.course.gui_points:
             file.write(str(p[0])+' '+str(p[1]) + '\n')
         file.close()
