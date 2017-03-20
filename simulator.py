@@ -45,7 +45,7 @@ T = .25 # Simulation step size
 LIDAR_FOV = 240 # Lidar's field of view in degrees
 LIDAR_RANGE = 10000 # Lidar's filter range in millimeters
 STEERING_RANGE = 45.0 # Maximum steering wheel angle
-WHEEL_RANGE = 35.0 # Maximum wheel angle 
+WHEEL_RANGE = 35.0 # Maximum wheel angle
 VEHICLE_ACCELERATION = 5 # Max acceleration in m/s^2
 VEHICLE_DECELERATION = 5 # Max deceleration in m/s^2
 L = 942.0 #Wheel base in mm
@@ -69,7 +69,7 @@ class CourseMaker(QWidget):
         self.right_bound = []
         self.target_steering = 0
         self.target_speed = 0
-        
+
         # Vehicle params
         self.vehicle_angle = 0
         self.wheel_angle = 0
@@ -156,9 +156,9 @@ class CourseMaker(QWidget):
             return
 
         # Run algorithm
-        try: 
+        try:
             self.target_steering = rs.boundaries_to_steering(list(self.left_bound), list(self.right_bound))
-            
+
             # Limit steering angle and print error
             if self.target_steering > STEERING_RANGE:
                 print('Steering angle outside of bounds: ' +  str(self.target_steering))
@@ -198,7 +198,7 @@ class CourseMaker(QWidget):
             new_angle = angle - math.radians(self.vehicle_angle)
             new_x = dist*math.sin(new_angle)
             new_y = dist*math.cos(new_angle) - self.speed*1000*T
-            guiX = new_x/MM_PER_PIXEL + self.lidar_pos[0] 
+            guiX = new_x/MM_PER_PIXEL + self.lidar_pos[0]
             guiY = self.lidar_pos[1] - new_y/MM_PER_PIXEL
 
             coords.append((guiX,guiY))
@@ -240,14 +240,14 @@ class CourseMaker(QWidget):
         '''
         Simulates a single step, moving the vehicle and running algorithms on the new location
         '''
-        
+
         # Simulate
         self.updateActuators()
         self.moveVehicle()
         self.lidarScan()
         self.boundaryMapping()
         self.laneKeeping()
-        
+
         # Update
         self.update()
         self.updated.emit()
@@ -289,7 +289,7 @@ class CourseMaker(QWidget):
         if len(self.gui_points) and self.editFlag:
             self.gui_points.pop()
             self.update()
-        
+
     def paintEvent(self, event):
         '''
         Draws all elements on the course. Called by update
@@ -297,7 +297,7 @@ class CourseMaker(QWidget):
 
         # Get lidar position
         self.lidar_pos = (self.size().width()/2,self.size().height()*4.0/5)
-        
+
         # Sizes
         cone_rad = 250.0/MM_PER_PIXEL
         car = 20
@@ -323,7 +323,7 @@ class CourseMaker(QWidget):
         # Draw Car
         paint.setBrush(Qt.black)
         paint.drawRect(self.lidar_pos[0] - car/2, self.lidar_pos[1] - car/2, car, car)
-        
+
         # Draw steering angle
         paint.setPen(Qt.black)
         paint.pen().setWidth(50)
@@ -351,7 +351,7 @@ class CourseMaker(QWidget):
 
         # Draw boundary cones
         for p in self.detected_cones:
-            paint.setBrush(Qt.black)              
+            paint.setBrush(Qt.black)
 
             paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
 
@@ -364,7 +364,7 @@ class CourseMaker(QWidget):
             elif self.right_bound.count(p[0]):
                 paint.setBrush(Qt.darkCyan)
             else:
-                paint.setBrush(Qt.darkRed)              
+                paint.setBrush(Qt.darkRed)
 
             paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
 
