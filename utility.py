@@ -22,7 +22,9 @@ def angle_between(u, v):
     # cos(theta) = (u dot v) / (||u|| * ||v||)
     num = u[0] * v[0] + u[1] * v[1]
     den = dist((0, 0), u) * dist((0, 0), v)
-    return math.acos(num / den)
+    # limit the value passed to acos to [-1.0, 1.0]
+    ah = max(-1.0, min(1.0, num / den))
+    return math.acos(ah)
 
 def regression(boundary, degree=2):
     xs, ys = separate_and_flip(boundary)
