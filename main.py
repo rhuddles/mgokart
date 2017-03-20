@@ -1,18 +1,26 @@
 #!/usr/bin/env python
 
 # from lidar_comms.takescan import enable_laser
-from parse_data import parse_csv_data
 from filter_data import get_cones
 from finish_line import detect_finish_line
 from greedy_boundary_mapping import create_boundary_lines
+from kalman import predict, update
+from me_comms import *
+from parse_data import parse_csv_data
 from predictive_speed import get_next_speed
 from regression_steering import boundaries_to_steering
 from utility import regression
+from hokuyo import enable_laser
 
 import os
 import sys
+import serial
 
 FOV = 200 # The LIDAR's real-world field of view
+
+# Ports for socket comms with me's
+ME_PORT = 8090
+MSG_LEN = 11
 
 LAP_COUNT = 0 # Current lap
 
@@ -24,13 +32,15 @@ LEFT_COEFS = []
 RIGHT_BOUNDARY = []
 RIGHT_COEFS = []
 
+
 def init_boundaries():
     pass
 
 def set_boundaries(left_boundary, right_boundary):
-    LEFT_BOUNDARY = left_boundary
-    LEFT_POLYS = regression(left_boundary)
-    RIGHT_BOUNDARY = right_boundary
+    global LEFT_BOUNDARY, LEFT_COEFS, RIGHT_BOUNDARY, RIGHT_COEFS
+    LEFT_BOUNDARY = list(left_boundary)
+    LEFT_COEFS = regression(left_boundary)
+    RIGHT_BOUNDARY = list(right_boundary)
     RIGHT_COEFS = regression(right_boundary)
 
 if __name__ == '__main__':
@@ -41,6 +51,7 @@ if __name__ == '__main__':
 
     # laser = enable_laser()
     init_boundaries()
+    # connection = init_connection(ME_PORT)
 
     for filename in files:
         # For LIDAR use
@@ -48,12 +59,21 @@ if __name__ == '__main__':
         # frame = get_world_points(distances, FOV)
         # --
 
+        # curr_speed, curr_bearing = receive(conn, MSG_LEN)
+        curr_speed, curr_bearing = 0, 0
+
         # For csv file use
         frame = parse_csv_data(filename, FOV)[0]
         # --
 
+        # Predict new boundary locations
+        predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
+                curr_speed, curr_bearing)
+        if predicted_left and predicted_right:
+            set_boundaries(predicted_left, predicted_right)
+
         # Filtering
-        cones = get_cones(frame)
+        cones = get_cones(frame, LEFT_COEFS, RIGHT_COEFS)
 
         # Finish line detection
         if detect_finish_line(cones):
@@ -62,15 +82,19 @@ if __name__ == '__main__':
 
         # Boundary mapping
         left_boundary, right_boundary = create_boundary_lines(cones)
+        left_boundary, right_boundary = update(left_boundary, right_boundary,
+                LEFT_BOUNDARY, RIGHT_BOUNDARY)
         set_boundaries(left_boundary, right_boundary)
 
         # Lane keeping (speed)
-        speed = get_next_speed(left_boundary, right_boundary)
+        speed = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY)
 
         # Lane keeping (steering)
-        bearing = boundaries_to_steering(left_boundary, right_boundary)
+        bearing = boundaries_to_steering(LEFT_BOUNDARY, RIGHT_BOUNDARY)
 
         print 'Speed:', speed
         print 'Bearing:', bearing
 
-        # TODO: Write to socket
+        # Write to socket
+        # send(ME_PORT, '%05.1f,%05.1f' % (speed, bearing))
+

@@ -13,7 +13,7 @@ def average(cones):
 
 	return (sum(x_total) / size, sum(y_total) / size)
 
-def filter_data(data):
+def filter_data(data, left_polys, right_polys):
     filtered = []
 
     for pt in data:
@@ -46,8 +46,8 @@ def group_cones(data):
     cones.append(average(this_cone))
     return cones
 
-def get_cones(data):
-    filtered = filter_data(data)
+def get_cones(data, left_polys, right_polys):
+    filtered = filter_data(data, left_polys, right_polys)
     cones = group_cones(filtered)
     return cones
 
