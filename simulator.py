@@ -33,6 +33,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
 # MGoKart Modules
+import finish_line as fl
 import boundary_mapping as bm
 import regression_steering as rs
 import predictive_speed as ps
@@ -47,6 +48,7 @@ STEERING_RANGE = 45.0 # Maximum steering wheel angle
 WHEEL_RANGE = 35.0 # Maximum wheel angle 
 VEHICLE_ACCELERATION = 5 # Max acceleration in m/s^2
 VEHICLE_DECELERATION = 5 # Max deceleration in m/s^2
+L = 942.0 #Wheel base in mm
 
 
 class CourseMaker(QWidget):
@@ -69,6 +71,7 @@ class CourseMaker(QWidget):
         self.target_speed = 0
         
         # Vehicle params
+        self.vehicle_angle = 0
         self.wheel_angle = 0
         self.steering = 0
         self.speed = 0
@@ -114,15 +117,25 @@ class CourseMaker(QWidget):
 
         # Format cones list for algorithm
         cones_list = []
-        print 'Detected Cones: ' + str(len(self.detected_cones))
         for point in self.detected_cones:
             cones_list.append(point[0])
         
+        fl.detect_finish_line(cones_list)
+
         # Run boundary mapping algorithm
+        bm_on = True
         try:
-            self.left_bound, self.right_bound = bm.create_boundary_lines(cones_list)
-            print 'Left Bound: ' + str(len(self.left_bound))
-            print 'Right Bound: ' + str(len(self.right_bound))
+            while bm_on:
+                self.right_bound, self.left_bound = bm.create_boundary_lines(list(cones_list))
+                
+                if (len(self.left_bound) + len(self.right_bound) + 2) < len(cones_list):
+                    if len(self.left_bound) < len(self.right_bound):
+                        cones_list.pop(0)
+                    else:
+                        cones_list.pop()
+                else:
+                    bm_on = False
+
         except Exception, e:
             print('Error running boundary mapping!')
             traceback.print_exc()
@@ -182,7 +195,7 @@ class CourseMaker(QWidget):
             dist = math.hypot(x,y)
             angle = math.atan2(x,y)
 
-            new_angle = angle - math.radians(self.steering)
+            new_angle = angle - math.radians(self.vehicle_angle)
             new_x = dist*math.sin(new_angle)
             new_y = dist*math.cos(new_angle) - self.speed*1000*T
             guiX = new_x/MM_PER_PIXEL + self.lidar_pos[0] 
@@ -219,6 +232,9 @@ class CourseMaker(QWidget):
                 self.speed = self.target_speed
 
         # TODO: Add vehicle position and angle change
+        dtheta = 1000.0*self.speed*self.wheel_angle*T/L
+        print 'Angle change ' + str(dtheta)
+        self.vehicle_angle = dtheta
 
     def stepSim(self):
         '''
@@ -226,8 +242,8 @@ class CourseMaker(QWidget):
         '''
         
         # Simulate
-        self.moveVehicle()
         self.updateActuators()
+        self.moveVehicle()
         self.lidarScan()
         self.boundaryMapping()
         self.laneKeeping()
@@ -260,6 +276,10 @@ class CourseMaker(QWidget):
         if self.editFlag:
             self.gui_points = []
             self.detected_cones = []
+            self.right_bound = []
+            self.left_bound = []
+            self.steering = 0
+            self.speed = 0
             self.update()
 
     def undoPlaceCone(self):
@@ -420,7 +440,9 @@ class Simulator(QMainWindow):
         Tk().withdraw()
         file = askopenfile(initialdir = './courses')
         if not file: return
-        self.course.gui_points = []
+        self.course.enableEdits(True)
+        self.course.clearMap()
+        self.course.enableEdits(False)
         for line in file:
             point = line.split()
             test = (int(float(point[0])),int(float(point[1])))
