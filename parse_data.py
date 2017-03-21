@@ -36,9 +36,9 @@ def parse_csv_data(filename, fov=270):
     return frames
 
 if __name__ == '__main__':
-    files = sorted(os.listdir('data'))
+    files = sorted(os.listdir('lidar_data'))
     for filename in files:
-        frames = parse_csv_data('data/' + filename)
+        frames = parse_csv_data('lidar_data/' + filename)
         frame = frames[0]
         x = [pt[0] for pt in frame]
         y = [pt[1] for pt in frame]

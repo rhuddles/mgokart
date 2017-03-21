@@ -158,7 +158,7 @@ def create_boundary_lines(cones, verbose = False):
 
 if __name__ == '__main__':
     #frames = [straight_data, left_turn_data, right_turn_data]
-    frames = parse_csv_data('data/2017_02_19_19_51_09_729_sharp_right.csv')
+    frames = parse_csv_data('lidar_data/2017_02_19_19_51_09_729_sharp_right.csv')
     start = time.time()
     frame = filter_data(frames[0])
     cones = get_cones(frame)

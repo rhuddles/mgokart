@@ -48,7 +48,7 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         files = sys.argv[1:]
     else:
-        files = ['data/' + path for path in sorted(os.listdir('data'))]
+        files = ['lidar_data/' + path for path in sorted(os.listdir('lidar_data'))]
 
     # laser = enable_laser()
     init_boundaries()

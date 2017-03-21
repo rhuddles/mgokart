@@ -24,7 +24,7 @@ import threading
 import time
 import traceback
 from operator import itemgetter
-from tkFileDialog import askopenfile, asksaveasfile
+from tkFileDialog import askopenfile, asksaveasfile, askopenfilename
 from Tkinter import Tk
 
 # QT5 Libraries
@@ -33,6 +33,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
 # MGoKart Modules
+import parse_data as pd
+import filter_data as fd
 import finish_line as fl
 import boundary_mapping as bm
 import regression_steering as rs
@@ -67,6 +69,7 @@ class CourseMaker(QWidget):
 
         # Algorithm params
         self.detected_cones = []
+        self.finish_cones = []
         self.left_bound = []
         self.right_bound = []
         self.target_steering = 0
@@ -128,9 +131,13 @@ class CourseMaker(QWidget):
             cones_list.append(point[0])
 
         
-        fl.detect_finish_line(cones_list)
+        finish_line = fl.detect_finish_line(cones_list)
+        if len(finish_line) == 2:
+            self.finish_cones = finish_line[0] + finish_line[1]
+        elif len(finish_line) == 1:
+            self.finish_cones = finish_line[0]
 
-        # Run boundary mapping algorithm
+        # Run boundary mapping algorithms
         bm_on = True
         try:
             while bm_on:
@@ -362,7 +369,9 @@ class CourseMaker(QWidget):
 
         # Draw boundary cones
         for p in self.detected_cones:
-            if self.left_bound.count(p[0]):
+            if self.finish_cones.count(p[0]):
+                paint.setBrush(Qt.darkMagenta)
+            elif self.left_bound.count(p[0]):
                 paint.setBrush(Qt.blue)
             elif self.right_bound.count(p[0]):
                 paint.setBrush(Qt.darkCyan)
@@ -370,6 +379,7 @@ class CourseMaker(QWidget):
                 paint.setBrush(Qt.darkRed)
 
             paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
+
 
         paint.end()
 
@@ -379,6 +389,22 @@ class CourseMaker(QWidget):
             p = QMouseEvent.pos()
             self.gui_points.append((p.x(),p.y()))
             self.update()
+
+    def wheelEvent(self, event):
+        global scaling_factor
+        old_factor = scaling_factor
+        scaling_factor -= event.angleDelta().y()/120.0;
+        if scaling_factor < 1:
+            scaling_factor = 1
+
+        new_gui_points = []
+        for p in self.gui_points:
+            px = float(p[0]-self.lidar_pos[0])*old_factor/scaling_factor + self.lidar_pos[0]
+            py = float(p[1]-self.lidar_pos[1])*old_factor/scaling_factor + self.lidar_pos[1]
+            new_gui_points.append((px,py))
+
+        self.gui_points = new_gui_points
+        self.update()
 
     def initUI(self):
         '''
@@ -456,6 +482,23 @@ class Simulator(QMainWindow):
         file.close()
         self.course.update()
 
+    def loadLidar(self):
+        Tk().withdraw()
+        filename = askopenfilename(initialdir = './lidar_data')
+        if not filename: return
+        self.course.enableEdits(True)
+        self.course.clearMap()
+        self.course.enableEdits(False)
+
+        data = pd.parse_csv_data(filename)[0]
+        print data
+        cones = fd.get_cones(data, None, None)
+        for point in cones:
+            x_coord = int(float(point[0])/scaling_factor + self.course.lidar_pos[0])
+            y_coord = int(-float(point[1])/scaling_factor + self.course.lidar_pos[1])
+            self.course.gui_points.append((x_coord, y_coord))
+        self.course.update()
+
     def closeEvent(self, event):
         file = open('courses/lastCourse', 'w')
         if file == '': return
@@ -494,12 +537,14 @@ class Simulator(QMainWindow):
         clear_button = QPushButton('Clear Map')
         save_button = QPushButton('Save Map')
         load_button = QPushButton('Load Map')
+        load_lidar_button = QPushButton('Load Lidar')
 
         self.edit_button.clicked.connect(self.editMap)
         undo_button.clicked.connect(self.course.undoPlaceCone)
         clear_button.clicked.connect(self.runClear)
         save_button.clicked.connect(self.save)
         load_button.clicked.connect(self.load)
+        load_lidar_button.clicked.connect(self.loadLidar)
 
         ###--- Simulation related buttons ---###
         sim_label= QLabel('Simulation')
@@ -529,6 +574,7 @@ class Simulator(QMainWindow):
         menuLayout.addWidget(clear_button)
         menuLayout.addWidget(save_button)
         menuLayout.addWidget(load_button)
+        menuLayout.addWidget(load_lidar_button)
         # Simulation
         menuLayout.addWidget(sim_label)
         menuLayout.addWidget(self.step_button)
