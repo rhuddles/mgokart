@@ -39,7 +39,7 @@ import regression_steering as rs
 import predictive_speed as ps
 
 # Constants - TODO: Move these to either class privates or expose to user
-MM_PER_PIXEL = 20 # Pixel to real world scaling
+scaling_factor = 20.0 # Pixel to real world scaling
 STEPPER_SLEW = (378/4) # Speed of the stepper motor in degrees/second
 T = .25 # Simulation step size
 LIDAR_FOV = 240 # Lidar's field of view in degrees
@@ -76,6 +76,10 @@ class CourseMaker(QWidget):
         self.steering = 0
         self.speed = 0
 
+         # Get lidar position
+        res = QApplication.desktop().screenGeometry();
+        scaling_factor = float(res.width())/160
+        self.lidar_pos = ((res.width()- 370)/2,res.height()*3.0/5)
         self.initUI()
 
     updated = pyqtSignal()
@@ -93,8 +97,8 @@ class CourseMaker(QWidget):
         lidar_coords = []
         for point in self.gui_points:
             # Convert from gui frame to lidar frame
-            x = (point[0] - self.lidar_pos[0])*MM_PER_PIXEL
-            y = (self.lidar_pos[1] - point[1])*MM_PER_PIXEL
+            x = (point[0] - self.lidar_pos[0])*scaling_factor
+            y = (self.lidar_pos[1] - point[1])*scaling_factor
             # Convert points to polar form and filter
             dist = math.hypot(x,y)
             angle = math.degrees(math.atan2(x,y))
@@ -119,6 +123,7 @@ class CourseMaker(QWidget):
         cones_list = []
         for point in self.detected_cones:
             cones_list.append(point[0])
+
         
         fl.detect_finish_line(cones_list)
 
@@ -188,8 +193,8 @@ class CourseMaker(QWidget):
 
         # Convert from gui frame to lidar frame
         for point in self.gui_points:
-            x = (point[0] - self.lidar_pos[0])*MM_PER_PIXEL
-            y = (self.lidar_pos[1] - point[1])*MM_PER_PIXEL
+            x = (point[0] - self.lidar_pos[0])*scaling_factor
+            y = (self.lidar_pos[1] - point[1])*scaling_factor
 
             # Convert points to polar form and filter
             dist = math.hypot(x,y)
@@ -198,8 +203,8 @@ class CourseMaker(QWidget):
             new_angle = angle - math.radians(self.vehicle_angle)
             new_x = dist*math.sin(new_angle)
             new_y = dist*math.cos(new_angle) - self.speed*1000*T
-            guiX = new_x/MM_PER_PIXEL + self.lidar_pos[0]
-            guiY = self.lidar_pos[1] - new_y/MM_PER_PIXEL
+            guiX = new_x/scaling_factor + self.lidar_pos[0]
+            guiY = self.lidar_pos[1] - new_y/scaling_factor
 
             coords.append((guiX,guiY))
 
@@ -295,16 +300,13 @@ class CourseMaker(QWidget):
         Draws all elements on the course. Called by update
         '''
 
-        # Get lidar position
-        self.lidar_pos = (self.size().width()/2,self.size().height()*4.0/5)
-
         # Sizes
-        cone_rad = 250.0/MM_PER_PIXEL
+        cone_rad = 250.0/scaling_factor
         car = 20
-        lidar_range = float(LIDAR_RANGE)/MM_PER_PIXEL
+        lidar_range = float(LIDAR_RANGE)/scaling_factor
         blind_angle = (360 - LIDAR_FOV)/2
-        dy = math.cos(math.radians(blind_angle))*LIDAR_RANGE/MM_PER_PIXEL
-        dx = math.sin(math.radians(blind_angle))*LIDAR_RANGE/MM_PER_PIXEL
+        dy = math.cos(math.radians(blind_angle))*LIDAR_RANGE/scaling_factor
+        dx = math.sin(math.radians(blind_angle))*LIDAR_RANGE/scaling_factor
 
         # Begin painting
         paint = QPainter()
@@ -327,15 +329,15 @@ class CourseMaker(QWidget):
         # Draw steering angle
         paint.setPen(Qt.black)
         paint.pen().setWidth(50)
-        x = math.sin(math.radians(self.steering))*self.target_speed*2000/MM_PER_PIXEL
-        y = math.cos(math.radians(self.steering))*self.target_speed*2000/MM_PER_PIXEL
+        x = math.sin(math.radians(self.steering))*self.target_speed*2000/scaling_factor
+        y = math.cos(math.radians(self.steering))*self.target_speed*2000/scaling_factor
         paint.drawLine(self.lidar_pos[0],self.lidar_pos[1],self.lidar_pos[0]+x,self.lidar_pos[1]-y)
 
         # Draw target steering angle
         paint.setPen(Qt.red)
         paint.pen().setWidth(50)
-        x = math.sin(math.radians(self.target_steering))*self.target_speed*1000/MM_PER_PIXEL
-        y = math.cos(math.radians(self.target_steering))*self.target_speed*1000/MM_PER_PIXEL
+        x = math.sin(math.radians(self.target_steering))*self.target_speed*1000/scaling_factor
+        y = math.cos(math.radians(self.target_steering))*self.target_speed*1000/scaling_factor
         paint.drawLine(self.lidar_pos[0],self.lidar_pos[1],self.lidar_pos[0]+x,self.lidar_pos[1]-y)
 
         # Draw cones
@@ -347,15 +349,13 @@ class CourseMaker(QWidget):
         if self.editFlag and len(self.gui_points):
             paint.setPen(Qt.darkBlue)
             paint.setBrush(Qt.transparent)
-            paint.drawEllipse(QPoint(self.gui_points[-1][0],self.gui_points[-1][1]), 5000/MM_PER_PIXEL, 5000/MM_PER_PIXEL)
+            paint.drawEllipse(QPoint(self.gui_points[-1][0],self.gui_points[-1][1]), 5000/scaling_factor, 5000/scaling_factor)
 
         # Draw boundary cones
         for p in self.detected_cones:
             paint.setBrush(Qt.black)
 
             paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
-
-
 
         # Draw boundary cones
         for p in self.detected_cones:
@@ -433,7 +433,9 @@ class Simulator(QMainWindow):
         file = asksaveasfile(initialdir = './courses')
         if not file: return
         for p in self.course.gui_points:
-            file.write(str(p[0])+' '+str(p[1]) + '\n')
+            x_coord = float(p[0] - self.course.lidar_pos[0])/scaling_factor
+            y_coord = float(p[1] - self.course.lidar_pos[1])/scaling_factor
+            file.write(str(x_coord)+' '+str(y_coord) + '\n')
         file.close()
 
     def load(self):
@@ -445,8 +447,9 @@ class Simulator(QMainWindow):
         self.course.enableEdits(False)
         for line in file:
             point = line.split()
-            test = (int(float(point[0])),int(float(point[1])))
-            self.course.gui_points.append(test)
+            x_coord = int(scaling_factor*float(point[0]) + self.course.lidar_pos[0])
+            y_coord = int(scaling_factor*float(point[1]) + self.course.lidar_pos[1])
+            self.course.gui_points.append((x_coord, y_coord))
         file.close()
         self.course.update()
 
@@ -536,7 +539,6 @@ class Simulator(QMainWindow):
 
         menuWidget = QWidget()
         menuWidget.setLayout(menuLayout)
-
 
         ###--- Main Layout ---###
 
