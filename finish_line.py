@@ -6,12 +6,13 @@ from greedy_boundary_mapping import angle_between
 from utility import dist, separate_xy
 from functools import partial
 
+import itertools
 import sys
 import math
 import matplotlib.pyplot as plt
 
 # Max thresholds between cones for defining a finish line
-ANGLE_THRESHOLD = math.radians(15)
+ANGLE_THRESHOLD = math.radians(30)
 DIST_THRESHOLD = 500 # Half meter
 
 # Finish Line constraints
@@ -22,14 +23,23 @@ DIST_THRESHOLD = 500 # Half meter
 def vector_between(a, b):
     return (b[0] - a[0], b[1] - a[1])
 
+def order_cone_group(cones):
+    best_order = None
+    best_error = None
+
+    for order in itertools.permutations(cones):
+        error = dist(order[0], order[1]) + dist(order[1], order[2])
+        if not best_order or error < best_error:
+            best_order = order
+            best_error = error
+
+    return best_order
+
 def get_finish_line_groups(cones, verbose=False):
     groups = []
 
-    i = 2
-    while i < len(cones):
-        pt1 = cones[i-2]
-        pt2 = cones[i-1]
-        pt3 = cones[i]
+    for group in itertools.combinations(cones, 3):
+        pt1, pt2, pt3 = order_cone_group(group)
 
         vec1 = vector_between(pt1, pt2)
         vec2 = vector_between(pt2, pt3)
@@ -43,25 +53,17 @@ def get_finish_line_groups(cones, verbose=False):
 
         if theta < ANGLE_THRESHOLD and dist1 < DIST_THRESHOLD \
                 and dist2 < DIST_THRESHOLD:
-            groups.append((pt1, pt2, pt3))
-            i += 3
-        else:
-            i += 1
+            groups.append([pt1, pt2, pt3])
 
     return groups
 
-def get_boundary_cone(group):
-    # Return the cone closest to us
-    dist_from_origin = partial(dist, (0,0))
-    return min(group, key=dist_from_origin)
-
 def remove_outside_cones(group, cones):
-    group = list(group)
-    boundary_cone = get_boundary_cone(group)
-    group.remove(boundary_cone)
+    # remove middle cone
+    cones.remove(group[1])
 
-    for outside_cone in group:
-        cones.remove(outside_cone)
+    # remove outer cone
+    outer_cone = max(group[0], group[2], key=lambda p: dist((0,0), p))
+    cones.remove(outer_cone)
 
 # In: A list of cones
 # Out: True if we have passed the finish line; modifies cones by removing extra
@@ -76,7 +78,8 @@ def detect_finish_line(cones):
     for group in finish_line_groups:
         remove_outside_cones(group, cones)
 
-    return False
+    # TODO: this eventually needs to be (left, right), easier with short term memory
+    return finish_line_groups
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
