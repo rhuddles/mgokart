@@ -91,7 +91,7 @@ if __name__ == '__main__':
         data = parse_csv_data(filename, 200)
 
         for frame in data:
-            cones = get_cones(frame)
+            cones = get_cones(frame, [], [])
 
             cone_xs, cone_ys = separate_xy(cones)
             blue = plt.scatter(cone_xs, cone_ys, marker='^', color='blue')
@@ -103,11 +103,6 @@ if __name__ == '__main__':
                 # Plot a group of cones that looks like a finish line grouping
                 group_xs, group_ys = separate_xy(group)
                 magenta = plt.scatter(group_xs, group_ys, marker='^', color='magenta')
-
-                # Highlight cone that is on the boundary
-                boundary_cone = get_boundary_cone(group)
-                black = plt.Circle(boundary_cone, 200, color='k', fill=False)
-                plt.gca().add_artist(black)
 
             green = plt.scatter(0, 0, color='green')
 
