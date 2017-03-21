@@ -78,7 +78,8 @@ class CourseMaker(QWidget):
 
          # Get lidar position
         res = QApplication.desktop().screenGeometry();
-        scaling_factor = float(res.width())/160
+        scaling_factor = 64000.0/res.width()
+
         self.lidar_pos = ((res.width()- 370)/2,res.height()*3.0/5)
         self.initUI()
 
