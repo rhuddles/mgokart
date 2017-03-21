@@ -56,6 +56,8 @@ class CourseMaker(QWidget):
     def __init__(self):
         super(CourseMaker, self).__init__()
 
+        global scaling_factor
+
         # Flags
         self.editFlag = False
         self.sim_on = False
@@ -434,8 +436,8 @@ class Simulator(QMainWindow):
         file = asksaveasfile(initialdir = './courses')
         if not file: return
         for p in self.course.gui_points:
-            x_coord = float(p[0] - self.course.lidar_pos[0])/scaling_factor
-            y_coord = float(p[1] - self.course.lidar_pos[1])/scaling_factor
+            x_coord = float(p[0] - self.course.lidar_pos[0])*scaling_factor
+            y_coord = float(p[1] - self.course.lidar_pos[1])*scaling_factor
             file.write(str(x_coord)+' '+str(y_coord) + '\n')
         file.close()
 
@@ -448,8 +450,8 @@ class Simulator(QMainWindow):
         self.course.enableEdits(False)
         for line in file:
             point = line.split()
-            x_coord = int(scaling_factor*float(point[0]) + self.course.lidar_pos[0])
-            y_coord = int(scaling_factor*float(point[1]) + self.course.lidar_pos[1])
+            x_coord = int(float(point[0])/scaling_factor + self.course.lidar_pos[0])
+            y_coord = int(float(point[1])/scaling_factor + self.course.lidar_pos[1])
             self.course.gui_points.append((x_coord, y_coord))
         file.close()
         self.course.update()
