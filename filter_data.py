@@ -22,7 +22,7 @@ def filter_data(data, left_polys, right_polys):
         # These numbers are super arbitrary right now
         # 30 mm for minumum distance from lidar spec
         # 10000 mm for 10 m cause why not
-        if (dist < 10000 and dist > 30):
+        if (dist < 10000 and dist > 500):
             filtered.append(pt)
 
     return filtered
