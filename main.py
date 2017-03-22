@@ -3,7 +3,7 @@
 # from lidar_comms.takescan import enable_laser
 from filter_data import get_cones
 from finish_line import detect_finish_line
-from greedy_boundary_mapping import create_boundary_lines, plot_boundaries
+from boundary_mapping import create_boundary_lines, plot_boundaries
 from kalman import predict, update
 from me_comms import *
 from parse_data import parse_csv_data
@@ -37,6 +37,7 @@ RIGHT_COEFS = []
 def init_boundaries():
     pass
 
+# Should only be called with boundaries returned by kalman functions
 def set_boundaries(left_boundary, right_boundary):
     global LEFT_BOUNDARY, LEFT_COEFS, RIGHT_BOUNDARY, RIGHT_COEFS
     LEFT_BOUNDARY = list(left_boundary)
@@ -70,14 +71,13 @@ if __name__ == '__main__':
         for frame in data:
 
             # Predict new boundary locations
-            # predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
-            #         curr_speed, curr_bearing)
-            # if predicted_left and predicted_right:
-            #     set_boundaries(predicted_left, predicted_right)
+            predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
+                    curr_speed, curr_bearing)
+            if predicted_left and predicted_right:
+                set_boundaries(predicted_left, predicted_right)
 
             # Filtering
             cones = get_cones(frame, LEFT_COEFS, RIGHT_COEFS)
-            cones_for_plot = list(cones)
 
             # Finish line detection
             if detect_finish_line(cones):
@@ -86,8 +86,8 @@ if __name__ == '__main__':
 
             # Boundary mapping
             left_boundary, right_boundary = create_boundary_lines(cones)
-            #left_boundary, right_boundary = update(left_boundary, right_boundary,
-            #        LEFT_BOUNDARY, RIGHT_BOUNDARY)
+            left_boundary, right_boundary = update(left_boundary, right_boundary,
+                    LEFT_BOUNDARY, RIGHT_BOUNDARY)
             set_boundaries(left_boundary, right_boundary)
 
             # Lane keeping (speed)
@@ -102,7 +102,7 @@ if __name__ == '__main__':
             # Plotting
 
             # Plot cones and boundaries
-            plot = plot_boundaries(cones_for_plot, LEFT_BOUNDARY, RIGHT_BOUNDARY)
+            plot = plot_boundaries(LEFT_BOUNDARY, RIGHT_BOUNDARY)
 
             # Plot heading vector
             vecx = 1000 * speed * math.sin(math.radians(bearing))
