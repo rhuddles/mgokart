@@ -78,6 +78,7 @@ if __name__ == '__main__':
 
             # Filtering
             cones = get_cones(frame, LEFT_COEFS, RIGHT_COEFS)
+            plot_cones = list(cones)
 
             # Finish line detection
             if detect_finish_line(cones):
@@ -102,7 +103,7 @@ if __name__ == '__main__':
             # Plotting
 
             # Plot cones and boundaries
-            plot = plot_boundaries(LEFT_BOUNDARY, RIGHT_BOUNDARY)
+            plot = plot_boundaries(plot_cones, LEFT_BOUNDARY, RIGHT_BOUNDARY)
 
             # Plot heading vector
             vecx = 1000 * speed * math.sin(math.radians(bearing))

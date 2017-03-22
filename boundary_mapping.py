@@ -60,20 +60,36 @@ def get_slope(cone, boundary):
     run = end_cone[0] - cone[0]
     return VERTICAL_SLOPE if run == 0 else rise / run
 
-def plot_boundaries(left_boundary, right_boundary):
+def plot_boundaries(cones, left_boundary, right_boundary):
+    # Plot cones
+    blue = plt.scatter([cone[0] for cone in cones], [cone[1] for cone in cones], color='blue', marker='^', label='Detected Cone')
+
     # Plot left boundary
     left_xs = [point[0] for point in left_boundary]
     left_ys = [point[1] for point in left_boundary]
-    plt.scatter(left_xs, left_ys, marker='^', color='green')
-    plt.plot(left_xs, left_ys, color='green')
+    orange, = plt.plot(left_xs, left_ys, color='orange', label='Left Boundary')
 
     # Plot right boundary
     right_xs = [point[0] for point in right_boundary]
     right_ys = [point[1] for point in right_boundary]
-    plt.scatter(right_xs, right_ys, marker='^', color='red')
-    plt.plot(right_xs, right_ys, color='red')
+    red, = plt.plot(right_xs, right_ys, color='red', label='Right Boundary')
 
-    plt.show()
+    green = plt.scatter(0, 0, color='green', label='Vehicle Position')
+
+    # Make plot look nice for report
+    plt.xlabel('Distance in millimeters')
+    plt.ylabel('Distance in millimeters')
+
+    #plt.legend(
+    #    (orange, red, blue, green),
+    #    ('Left Boundary', 'Right Boundary', 'Detected Cone', 'Vehicle Position'),
+    #    loc='upper left'
+    #)
+
+    plt.axis('equal')
+    # plt.title('Greedy Boundary Mapping')
+    # plt.show()
+    return plt
 
 
 def create_boundary_lines(cones, verbose = False):
