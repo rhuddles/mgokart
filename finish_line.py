@@ -58,12 +58,16 @@ def get_finish_line_groups(cones, verbose=False):
     return groups
 
 def remove_outside_cones(group, cones):
-    # remove middle cone
-    cones.remove(group[1])
-
-    # remove outer cone
     outer_cone = max(group[0], group[2], key=lambda p: dist((0,0), p))
-    cones.remove(outer_cone)
+
+    # catch exceptions in case of double removal
+    try:
+        # remove middle cone
+        cones.remove(group[1])
+        # remove outer cone
+        cones.remove(outer_cone)
+    except ValueError:
+        pass
 
 # In: A list of cones
 # Out: True if we have passed the finish line; modifies cones by removing extra
