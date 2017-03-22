@@ -53,6 +53,9 @@ VEHICLE_DECELERATION = 5 # Max deceleration in m/s^2
 L = 942.0 #Wheel base in mm
 
 
+def dist(p0, p1):
+    return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
+
 class CourseMaker(QWidget):
 
     def __init__(self):
@@ -248,7 +251,6 @@ class CourseMaker(QWidget):
 
         # TODO: Add vehicle position and angle change
         dtheta = 1000.0*self.speed*self.wheel_angle*T/L
-        print 'Angle change ' + str(dtheta)
         self.vehicle_angle = dtheta
 
     def stepSim(self):
@@ -424,6 +426,8 @@ class Simulator(QMainWindow):
 
         self.editFlag = False
         self.sim_on = False
+        self.lidar_frame = 0
+        self.lidar_data = []
 
         self.course = CourseMaker()
         self.course.updated.connect(self.updateStatus)
@@ -482,18 +486,85 @@ class Simulator(QMainWindow):
         file.close()
         self.course.update()
 
-    def loadLidar(self):
-        Tk().withdraw()
-        filename = askopenfilename(initialdir = './lidar_data')
-        if not filename: return
+    def loadFrame(self):
         self.course.enableEdits(True)
         self.course.clearMap()
         self.course.enableEdits(False)
-
-        data = pd.parse_csv_data(filename)[0]
-        print data
-        cones = fd.get_cones(data, None, None)
+        cones = fd.get_cones(self.lidar_data[self.next_frame_button.value()], None, None)
         for point in cones:
+            x_coord = int(float(point[0])/scaling_factor + self.course.lidar_pos[0])
+            y_coord = int(-float(point[1])/scaling_factor + self.course.lidar_pos[1])
+            self.course.gui_points.append((x_coord, y_coord))
+        self.course.update()
+
+    def loadLidarTestCourse(self):
+        Tk().withdraw()
+        filename = askopenfilename(initialdir = './lidar_data')
+        if not filename: return
+        self.lidar_data = pd.parse_csv_data(filename)
+        self.next_frame_button.setMaximum(len(self.lidar_data) - 1)
+        global_cones_list = []
+        global_cones_list.append((0,0))
+        prev_cones_list = []
+
+        # Get data from all frames
+        for frame in self.lidar_data:
+
+            # Reset current cones
+            current_cones_list = []
+
+            # Run filtering algorithm. TODO: Add short term memory
+            cones = fd.get_cones(frame, None, None)
+            
+            # Get matches
+            for pc in prev_cones_list:
+                for nc in cones:
+
+                    # Cone is already known
+                    if dist(pc[1],nc) < 150:
+                        if pc[2] < 0:
+                            current_cones_list.append((pc[0],nc,pc[2] + 1))
+                        else:
+                            current_cones_list.append((pc[0],nc,pc[2]))
+                        cones.remove(nc)
+                        break;
+
+            # Add non-matched cones
+            for nc in cones:
+                current_cones_list.append((nc,nc,-50))
+
+            # Find Rererence cone
+            ref_cone = ((0,0),(0,0),0)
+            no_ref = False
+            if len(global_cones_list) < 2:
+                no_ref = True
+            else:   
+                for cc in current_cones_list:
+                    if cc[2] > 0:
+                        ref_cone = cc
+                        break
+
+            for cc in current_cones_list:
+                if cc[2] == 0:
+                    # Error but whatever
+                    if ref_cone == ((0,0),(0,0),0) and not no_ref:
+                        print "Failed to find a refrence cone!!!!"
+                    dx = cc[0][0] - ref_cone[1][0]
+                    dy = cc[0][1] - ref_cone[1][1]
+                    x= global_cones_list[ref_cone[2]][0] + dx
+                    y= global_cones_list[ref_cone[2]][1] + dy
+                    current_cones_list.remove(cc)
+                    new_cc = (cc[0],cc[1], len(global_cones_list))
+                    current_cones_list.append(new_cc)
+                    global_cones_list.append((x,y))
+
+            # Save list
+            prev_cones_list = current_cones_list
+        
+        self.course.enableEdits(True)
+        self.course.clearMap()
+        self.course.enableEdits(False)
+        for point in global_cones_list:
             x_coord = int(float(point[0])/scaling_factor + self.course.lidar_pos[0])
             y_coord = int(-float(point[1])/scaling_factor + self.course.lidar_pos[1])
             self.course.gui_points.append((x_coord, y_coord))
@@ -544,16 +615,21 @@ class Simulator(QMainWindow):
         clear_button.clicked.connect(self.runClear)
         save_button.clicked.connect(self.save)
         load_button.clicked.connect(self.load)
-        load_lidar_button.clicked.connect(self.loadLidar)
+        load_lidar_button.clicked.connect(self.loadLidarTestCourse)
 
         ###--- Simulation related buttons ---###
         sim_label= QLabel('Simulation')
 
         self.step_button = QPushButton('Step Forward')
         self.run_button = QPushButton('Run Simulation')
+        next_scan = QLabel('Lidar Frame:')
+        self.next_frame_button = QSpinBox()
+        self.next_frame_button.setMaximum(10000)
+        self.next_frame_button.setSingleStep(10)
 
         self.step_button.clicked.connect(self.course.stepSim)
         self.run_button.clicked.connect(self.runSim)
+        self.next_frame_button.valueChanged.connect(self.loadFrame)
 
         ###--- Status related buttons ---###
         status_label = QLabel('Status')
@@ -579,6 +655,8 @@ class Simulator(QMainWindow):
         menuLayout.addWidget(sim_label)
         menuLayout.addWidget(self.step_button)
         menuLayout.addWidget(self.run_button)
+        menuLayout.addWidget(next_scan)
+        menuLayout.addWidget(self.next_frame_button)
         # Status
         menuLayout.addWidget(status_label)
         menuLayout.addWidget(steering_label)
