@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from matplotlib import pyplot as plt
 from parse_data import parse_csv_data
 from operator import itemgetter
 from filter_data import *
@@ -8,6 +7,11 @@ from filter_data import *
 import math
 import sys
 import time
+
+try:
+    from matplotlib import pyplot as plt
+except:
+    pass
 
 # The maximum change in slope allowed
 MAX_ANGLE_ALLOWED = math.radians(45)
@@ -76,7 +80,7 @@ def create_boundary_lines(cones, verbose = False):
 
     start_left = find_lower_left_cone(cones)
     start_right = find_lower_right_cone(cones)
-    
+
     left_bound = [start_left]
     right_bound = [start_right]
 
@@ -102,11 +106,11 @@ def create_boundary_lines(cones, verbose = False):
             prev_vector = (left_bound[-1][0] - left_bound[-2][0], left_bound[-1][1] - left_bound[-2][1])
             theta = angle_between(prev_vector,current_vector)
         else: theta = 0
-        
+
         # Get Distance to next cone
         dist_left = dist(cones[cone], left_bound[-1])
         dist_right = dist(cones[cone], right_bound[-1])
-        
+
         # Test cone
         if dist_right < dist_left or dist_left > MAX_DISTANCE_ALLOWED or theta > MAX_ANGLE_ALLOWED:
             skip_boundary = True
@@ -122,7 +126,7 @@ def create_boundary_lines(cones, verbose = False):
         cone = find_closest_cone(right_bound[-1], cones)
         if cone < 0:
             break
- 
+
         # Print distances
         if verbose:
             print "Testing Cone at " + str(cones[cone]) + " for right boundary"
@@ -135,7 +139,7 @@ def create_boundary_lines(cones, verbose = False):
             prev_vector = (right_bound[-1][0] - right_bound[-2][0], right_bound[-1][1] - right_bound[-2][1])
             theta = angle_between(prev_vector,current_vector)
         else: theta = 0
-        
+
         # Get Distance to next cone
         dist_left = dist(cones[cone], left_bound[-1])
         dist_right = dist(cones[cone], right_bound[-1])

@@ -62,9 +62,6 @@ def update(new_left, new_right, old_left, old_right):
             updated_right.append(old_cone)
             i += 1
 
-    print 'LEFT_CONFS ', LEFT_CONFS
-    print 'RIGHT_CONFS ', RIGHT_CONFS
-
     if sum(LEFT_CONFS) > 2:
         LEFT_CONFS = LEFT_CONFS[1:]
         updated_left = updated_left[1:]

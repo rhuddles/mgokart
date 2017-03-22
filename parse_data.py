@@ -2,8 +2,12 @@
 
 import csv
 import math
-import matplotlib.pyplot as plt
 import os
+
+try:
+    import matplotlib.pyplot as plt
+except:
+    pass
 
 def polar_to_cart(theta, dist):
     rads = math.radians(theta)

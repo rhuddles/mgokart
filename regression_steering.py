@@ -3,12 +3,16 @@
 from parse_data import *
 from filter_data import *
 from finish_line import detect_finish_line
-from greedy_boundary_mapping import *
+from boundary_mapping import *
 from utility import *
 
-import matplotlib.pyplot as plt
 import numpy as np
 import time
+
+try:
+    import matplotlib.pyplot as plt
+except:
+    pass
 
 def plot_line(coefs, min_x, max_x, style='-k'):
     f = np.poly1d(coefs)

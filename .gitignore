@@ -1,5 +1,6 @@
 vision/build
 .venv
+.edison
 venv
 *.pyc
 courses/lastCourse

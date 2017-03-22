@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
-from matplotlib import pyplot as plt
 from parse_data import parse_csv_data
 from utility import dist, separate_xy
-import math as m
+
+import math
 import os
 import sys
+
+try:
+    from matplotlib import pyplot as plt
+except:
+    pass
 
 def average(cones):
 	x_total, y_total = separate_xy(cones)
@@ -17,7 +22,7 @@ def filter_data(data, left_polys, right_polys):
     filtered = []
 
     for pt in data:
-        dist = m.sqrt(pt[0]**2 + pt[1]**2)
+        dist = math.sqrt(pt[0]**2 + pt[1]**2)
 
         # These numbers are super arbitrary right now
         # 30 mm for minumum distance from lidar spec

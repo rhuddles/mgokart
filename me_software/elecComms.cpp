@@ -31,8 +31,8 @@ void get_updates(int sock)
 		memcpy(bearing, buf+6, 5);
 		SPEED = atof(speed);
 		BEARING = atof(bearing);
-		printf("Speed: %f\n", SPEED);
-		printf("Bearing: %f\n", BEARING);
+		printf("Speed:\t\t%+5.1f\n", SPEED);
+		printf("Bearing:\t%+5.1f\n\n", BEARING);
 	}
 }
 

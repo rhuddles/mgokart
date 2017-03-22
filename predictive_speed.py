@@ -2,15 +2,19 @@
 
 from filter_data import get_cones
 from finish_line import detect_finish_line
-from greedy_boundary_mapping import create_boundary_lines
+from boundary_mapping import create_boundary_lines
 from parse_data import parse_csv_data
 from utility import separate_xy, angle_between
-from matplotlib import pyplot as plt
 import numpy as np
 
 import os
 import sys
 import math
+
+try:
+    from matplotlib import pyplot as plt
+except:
+    pass
 
 # Vertical vector
 VERTICAL = (0, 1)
@@ -93,12 +97,9 @@ def get_next_speed(left_boundary, right_boundary):
     # Find angle between average vector and vertical
     angle = angle_between(VERTICAL, vec)
     angle = angle if angle < MAX_ANGLE else MAX_ANGLE
-    print('Angle from vertical: {} degrees'.format(math.degrees(angle)))
-
     proportion = (MAX_ANGLE - angle) / MAX_ANGLE
-    print('Proportion: {}'.format(proportion))
-
     speed = MAX_SPEED * proportion
+
     return speed if speed > MIN_SPEED else MIN_SPEED
 
 if __name__ == '__main__':

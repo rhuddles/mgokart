@@ -2,14 +2,18 @@
 
 from parse_data import parse_csv_data
 from filter_data import get_cones
-from greedy_boundary_mapping import angle_between
+from boundary_mapping import angle_between
 from utility import dist, separate_xy
 from functools import partial
 
 import itertools
 import sys
 import math
-import matplotlib.pyplot as plt
+
+try:
+    import matplotlib.pyplot as plt
+except:
+    pass
 
 # Max thresholds between cones for defining a finish line
 ANGLE_THRESHOLD = math.radians(30)
