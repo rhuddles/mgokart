@@ -66,6 +66,9 @@ def get_steering_command(path, speed, dt, plot=False):
     # we say positive angles are clockwise rotations
     theta *= -1
 
+    theta = theta if theta > -math.pi/4 else -math.pi/4
+    theta = theta if theta < math.pi/4 else math.pi/4
+
     return math.degrees(theta)
 
 def boundaries_to_steering(left, right, speed=1000, dt=0.3):
