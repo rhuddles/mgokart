@@ -218,7 +218,6 @@ class Hokuyo(object):
         count += 2 * int(count / Hokuyo.CHARS_PER_BLOCK) # sum and lf of all lines of data
         count += 3 # final sum and double lf
         count = int(count)
-        print count
 
         self.__port_lock.acquire()
         try:
@@ -233,7 +232,6 @@ class Hokuyo(object):
         result = ''.join(result)
 
         for chunk in chunks(result, int(Hokuyo.CHARS_PER_VALUE)):
-            print chunk
             distances.append(decode(chunk))
 
         return distances
@@ -248,7 +246,6 @@ class Hokuyo(object):
             assert result == cmd
 
             result += self.__port.read(4)
-            print result
             assert result[-4:] == '00P\n'
 
             result += self.__port.read(6)
@@ -314,7 +311,6 @@ class Hokuyo(object):
 
     def get_scan(self):
         if self.__scanning_allowed:
-            print 'scanning'
             return self.get_single_scan()
 
         else: return [], 0
