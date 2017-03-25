@@ -9,7 +9,7 @@ from me_comms import *
 from parse_data import parse_csv_data
 from predictive_speed import get_next_speed
 from regression_steering import boundaries_to_steering
-from utility import regression
+from utility import regression, separate_and_flip
 from hokuyo import enable_laser
 
 import math
@@ -32,7 +32,6 @@ LEFT_COEFS = []
 
 RIGHT_BOUNDARY = []
 RIGHT_COEFS = []
-
 
 def init_boundaries():
     pass
@@ -76,6 +75,7 @@ if __name__ == '__main__':
             if predicted_left and predicted_right:
                 set_boundaries(predicted_left, predicted_right)
 
+            lp, rp = LEFT_COEFS, RIGHT_COEFS
             # Filtering
             cones = get_cones(frame, LEFT_COEFS, RIGHT_COEFS)
             plot_cones = list(cones)
@@ -96,9 +96,6 @@ if __name__ == '__main__':
 
             # Lane keeping (steering)
             bearing = boundaries_to_steering(LEFT_BOUNDARY, RIGHT_BOUNDARY)
-
-            print 'Speed:', speed
-            print 'Bearing:', bearing
 
             # Plotting
 
