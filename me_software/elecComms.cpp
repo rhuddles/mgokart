@@ -40,7 +40,8 @@ void send_updates(int sock, double speed, double bearing)
 {
 	char buf[12];
 	sprintf(buf, "%+05.1f,%+05.1f", speed, bearing);
-	send(sock, buf, sizeof(buf), 0);
+	// send all but the null terminating character
+	send(sock, buf, sizeof(buf) - 1, 0);
 }
 
 int main(int argc, char** argv)
@@ -66,7 +67,9 @@ int main(int argc, char** argv)
 
 	std::thread t(get_updates, sock);
 
-	send_updates(sock, 4.3, -14.2);
+	while (running) {
+		send_updates(sock, 4.3, -14.2);
+	}
 
 	t.join();
 	return 0;

@@ -100,10 +100,10 @@ if __name__ == '__main__':
     for filename in files:
         print(filename)
 
-        data = parse_csv_data(filename, fov=200)[300:]
+        data = parse_csv_data(filename, fov=200)
 
         for frame in data:
-            cones = get_cones(frame)
+            cones = get_cones(frame, None, None)
             detect_finish_line(cones)
             cone_xs, cone_ys = separate_and_flip(cones)
 

@@ -9,17 +9,26 @@ def init_connection(port):
     conn, addr = sock.accept()
     return conn
 
-def receive(conn, size):
-        # assuming msg format is 'speed,bearing'
-        msg = conn.recv(size)
-        print 'msg:', msg
-        speed, bearing = msg.split(',')
+def receive(conn, size, verbose=True):
+    msg = ''
+    recvd = 0
+    while recvd < size:
+        data = conn.recv(size - recvd)
+        recvd += len(data)
+        msg += data
+
+    # assuming msg format is 'speed,bearing'
+    speed, bearing = msg.split(',')
+
+    if verbose:
         print 'speed:', speed
         print 'bearing:', bearing
-        return float(speed), float(bearing)
+
+    return float(speed), float(bearing)
 
 def send(conn, msg):
     # Checking to make sure right number of bytes sent
-    while conn.send(msg) != len(msg):
-        pass
+    sent = 0
+    while sent < len(msg):
+        sent += conn.send(msg[sent:])
 
