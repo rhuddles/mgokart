@@ -2,10 +2,14 @@
 #include <unistd.h>
 
 #define DELTA_TIME 100000 // 40 us = 25 kHz
-#define COUNTS_PER_REV 20 // (48 counts/rev) * (9.7:1 gear ratio)
+#define COUNTS_PER_REV 20.0 // (48 counts/rev) * (9.7:1 gear ratio)
 
-const int SPEED_INTERRUPT_PIN_A = 12;
-const int SPEED_INTERRUPT_PIN_B = 13;
+// Steering Wheel
+//const int SPEED_INTERRUPT_PIN_A = 4;
+//const int SPEED_INTERRUPT_PIN_B = 6;
+
+const int SPEED_INTERRUPT_PIN_A = 7;
+const int SPEED_INTERRUPT_PIN_B = 8;
 
 mraa_gpio_context speed_encoder_a;
 mraa_gpio_context speed_encoder_b;
@@ -19,7 +23,6 @@ int oldPos = 0;
 //int T = 50;
 
 // TODO: make microseconds
-time_t start_time;
 time_t last_time;
 
 void edison_isrA(void *);
@@ -39,21 +42,20 @@ int main()
 	mraa_gpio_isr(speed_encoder_b, MRAA_GPIO_EDGE_BOTH, &edison_isrB, NULL);
 
 	last_time = time(NULL);
-	start_time = last_time;
 
 	while (1) {
-		printf("Encoder: %d\n", encoder);
+		//printf("Encoder: %d\n", encoder);
 		int newPos = encoder;
 		time_t newTime = time(NULL);
-		time_t period = difftime(last_time, newTime) * 1000; // Make milliseconds
-		float omega = (newPos - oldPos)*1000*.15/(((float)period)*COUNTS_PER_REV)*60;
+		float period = (float)difftime(newTime, last_time);
+		float omega = (((float)(newPos - oldPos)) * .15 * 2.0 * 3.14)/(period * COUNTS_PER_REV);
 
 		oldPos = newPos;
 		last_time = newTime;
 
-	//	printf("Omega: %f\n", omega);
+		printf("%f m/s\n", omega);
 
-		usleep(2000000); // Delay 20 milliseconds
+		usleep(100000);
 	}
 
 	mraa_gpio_close(speed_encoder_a);
