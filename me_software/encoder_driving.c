@@ -1,14 +1,11 @@
 #include <mraa/gpio.h>
 #include <unistd.h>
 
-const int encoderA = 3;
-const int encoderB = 2;
-
 #define DELTA_TIME 100000 // 40 us = 25 kHz
 #define COUNTS_PER_REV 20 // (48 counts/rev) * (9.7:1 gear ratio)
 
-const int SPEED_INTERRUPT_PIN_A = 0;
-const int SPEED_INTERRUPT_PIN_B = 1;
+const int SPEED_INTERRUPT_PIN_A = 12;
+const int SPEED_INTERRUPT_PIN_B = 13;
 
 mraa_gpio_context speed_encoder_a;
 mraa_gpio_context speed_encoder_b;
@@ -38,13 +35,14 @@ int main()
 	mraa_gpio_dir(speed_encoder_b, MRAA_GPIO_IN);
 
 	// register interrupts
-	mraa_gpio_isr(speed_encoder_a, MRAA_GPIO_EDGE_RISING, &edison_isrA, NULL);
-	mraa_gpio_isr(speed_encoder_b, MRAA_GPIO_EDGE_RISING, &edison_isrB, NULL);
+	mraa_gpio_isr(speed_encoder_a, MRAA_GPIO_EDGE_BOTH, &edison_isrA, NULL);
+	mraa_gpio_isr(speed_encoder_b, MRAA_GPIO_EDGE_BOTH, &edison_isrB, NULL);
 
 	last_time = time(NULL);
 	start_time = last_time;
 
 	while (1) {
+		printf("Encoder: %d\n", encoder);
 		int newPos = encoder;
 		time_t newTime = time(NULL);
 		time_t period = difftime(last_time, newTime) * 1000; // Make milliseconds
@@ -53,9 +51,9 @@ int main()
 		oldPos = newPos;
 		last_time = newTime;
 
-		printf("Omega: %f\n", omega);
+	//	printf("Omega: %f\n", omega);
 
-		usleep(20000); // Delay 20 milliseconds
+		usleep(2000000); // Delay 20 milliseconds
 	}
 
 	mraa_gpio_close(speed_encoder_a);
