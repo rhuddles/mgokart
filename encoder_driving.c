@@ -1,5 +1,5 @@
 #include <mraa/gpio.h>
-#include <time.h>
+#include <unistd.h>
 
 const int encoderA = 3;
 const int encoderB = 2;
@@ -7,8 +7,8 @@ const int encoderB = 2;
 #define DELTA_TIME 100000 // 40 us = 25 kHz
 #define COUNTS_PER_REV 20 // (48 counts/rev) * (9.7:1 gear ratio)
 
-const int SPEED_INTERRUPT_PIN_A = 0
-const int SPEED_INTERRUPT_PIN_B = 1
+const int SPEED_INTERRUPT_PIN_A = 0;
+const int SPEED_INTERRUPT_PIN_B = 1;
 
 mraa_gpio_context speed_encoder_a;
 mraa_gpio_context speed_encoder_b;
@@ -22,12 +22,11 @@ int oldPos = 0;
 //int T = 50;
 
 // TODO: make microseconds
-clock_t start_time;
-clock_t last_time;
+time_t start_time;
+time_t last_time;
 
-void edison_isrA();
-void edison_isrB();
-int clock_to_ms(clock_t diff);
+void edison_isrA(void *);
+void edison_isrB(void *);
 
 int main()
 {
@@ -39,24 +38,24 @@ int main()
 	mraa_gpio_dir(speed_encoder_b, MRAA_GPIO_IN);
 
 	// register interrupts
-	mraa_gpio_isr(speed_encoder_a, MRAA_GPIO_EDGE_RISING, &edison_isrA);
-	mraa_gpio_isr(speed_encoder_b, MRAA_GPIO_EDGE_RISING, &edison_isrB);
+	mraa_gpio_isr(speed_encoder_a, MRAA_GPIO_EDGE_RISING, &edison_isrA, NULL);
+	mraa_gpio_isr(speed_encoder_b, MRAA_GPIO_EDGE_RISING, &edison_isrB, NULL);
 
-	last_time = clock();
-	startTime = last_time;
+	last_time = time(NULL);
+	start_time = last_time;
 
-	while (true) {
+	while (1) {
 		int newPos = encoder;
-		clock_t newTime = clock();
-		clock_t period = clock_to_ms(newTime - timer);
+		time_t newTime = time(NULL);
+		time_t period = difftime(last_time, newTime) * 1000; // Make milliseconds
 		float omega = (newPos - oldPos)*1000*.15/(((float)period)*COUNTS_PER_REV)*60;
 
 		oldPos = newPos;
-		timer = newTime;
+		last_time = newTime;
 
 		printf("Omega: %f\n", omega);
 
-		delay(20);
+		usleep(20000); // Delay 20 milliseconds
 	}
 
 	mraa_gpio_close(speed_encoder_a);
@@ -64,7 +63,7 @@ int main()
 	return 0;
 }
 
-void edison_isrA()
+void edison_isrA(void *params)
 {
 	int channelA = mraa_gpio_read(speed_encoder_a);
 	int channelB = mraa_gpio_read(speed_encoder_b);
@@ -79,7 +78,7 @@ void edison_isrA()
 	}
 }
 
-void edison_isrB()
+void edison_isrB(void *params)
 {
 	int channelA = mraa_gpio_read(speed_encoder_a);
 	int channelB = mraa_gpio_read(speed_encoder_b);
@@ -92,11 +91,6 @@ void edison_isrB()
 		// encoder values are different->negative rotation
 		encoder--;
 	}
-}
-
-int clock_to_ms(clock_t diff)
-{
-	return diff * 1000 / CLOCKS_PER_SEC;
 }
 
 //void setup() {
