@@ -1,4 +1,6 @@
-all: elecComms encoder dpdt throttle
+.SUFFIXES:
+
+all: elecComms encoder dpdt throttle main
 
 elecComms: elecComms.cpp
 	g++ elecComms.cpp --std=c++11 -lpthread -lmraa -o elecComms
@@ -6,13 +8,16 @@ elecComms: elecComms.cpp
 encoder: encoder_driving.c
 	gcc encoder_driving.c -l mraa -o encoder
 
-dpdt: dpdt.c
-	gcc dpdt.c -l mraa -o dpdt
+dpdt: dpdt.c dpdt.h
+	gcc -c dpdt.c -l mraa
 
 throttle: throttle_signal.c
 	gcc throttle_signal.c -l mraa -o throttle
 
+main: main.c dpdt
+	gcc main.c dpdt.o -l mraa -o main
+
 clean:
-	$(RM) elecComms encoder dpdt throttle
+	$(RM) elecComms encoder dpdt.o throttle main
 
 .phony: all clean

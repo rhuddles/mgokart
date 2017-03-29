@@ -1,20 +1,15 @@
-#include <mraa/gpio.h>
+#include "dpdt.h"
+
+#include <stdlib.h>
 
 const int DPDT_PIN = 3;
 
-mraa_gpio_context dpdt_pin;
+const int DPDT_FORWARD = 0;
+const int DPDT_REVERSE = 1;
 
-int main(int argc, char **argv)
+mraa_gpio_context init_dpdt()
 {
-	int val = 0;
-	if (argc > 1) {
-		val = atoi(argv[1]);	
-	}
-
-	fprintf(stderr, "Writing %d to pin %d\n", val, DPDT_PIN);
-
-	dpdt_pin = mraa_gpio_init(DPDT_PIN);
-	mraa_gpio_dir(dpdt_pin, MRAA_GPIO_OUT);
-	
-	mraa_gpio_write(dpdt_pin, val);
+	mraa_gpio_context dpdt_pin = mraa_gpio_init(DPDT_PIN);
+	mraa_gpio_dir(dpdt_pin, MRAA_GPIO_OUT_LOW);
+    return dpdt_pin;
 }
