@@ -21,8 +21,8 @@ def receive(conn, size, verbose=True):
     speed, bearing = msg.split(',')
 
     if verbose:
-        print 'speed:', speed
-        print 'bearing:', bearing
+#        print 'speed:', speed
+        print 'Bearing:', bearing
 
     return float(speed), float(bearing)
 

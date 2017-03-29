@@ -14,7 +14,7 @@ LOG_DIRECTORY = 'logs/'
 DEFAULT_VEHICLE_LOG = 'vehicle.log'
 DEFAULT_LIDAR_LOG = 'lidar.log'
 
-MESSAGE_LENGTH = 11
+MESSAGE_LENGTH = 16 - 1
 LIDAR_FOV = 200
 
 TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
@@ -101,14 +101,14 @@ if __name__ == '__main__':
 
     # Start listener threads
     t1 = threading.Thread(target=vehicle_state_updates, args=(vehicle_log, conn))
-    t2 = threading.Thread(target=lidar_updates, args=(lidar_log, lidar))
+#    t2 = threading.Thread(target=lidar_updates, args=(lidar_log, lidar))
 
     # Only want main thread to control program lifetime so Ctrl-C works
     t1.daemon = True
-    t2.daemon = True
+#    t2.daemon = True
 
     t1.start()
-    t2.start()
+#    t2.start()
 
     # Sleep until it gets a signal so Ctrl-C works
     signal.pause()
