@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     for filename in files:
         # For LIDAR use
-        # distances, timestamp = laser.get_scan()
+        # distances = laser.get_scan()
         # frame = get_world_points(distances, FOV)
         # --
 

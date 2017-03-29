@@ -2,6 +2,7 @@
 
 from hokuyo import *
 from me_comms import *
+from parse_data import get_world_points
 
 from datetime import datetime
 import os
@@ -72,7 +73,8 @@ def vehicle_state_updates(log_filename, conn):
 def lidar_updates(log_filename, lidar):
     with open(log_filename, 'w') as log:
         while True:
-            _, distances, _ = lidar.get_scan()
+            distances = lidar.get_scan()
+            print distances
             points = get_world_points(distances, LIDAR_FOV)
             log_lidar(log, points)
 
@@ -95,20 +97,20 @@ if __name__ == '__main__':
     if not os.path.isdir(LOG_DIRECTORY):
         os.mkdir(LOG_DIRECTORY)
 
-#    lidar = enable_laser()
-    lidar = None
+    lidar = enable_laser()
+#    lidar = None
     conn = init_connection(port)
 
     # Start listener threads
     t1 = threading.Thread(target=vehicle_state_updates, args=(vehicle_log, conn))
-#    t2 = threading.Thread(target=lidar_updates, args=(lidar_log, lidar))
+    t2 = threading.Thread(target=lidar_updates, args=(lidar_log, lidar))
 
     # Only want main thread to control program lifetime so Ctrl-C works
     t1.daemon = True
-#    t2.daemon = True
+    t2.daemon = True
 
     t1.start()
-#    t2.start()
+    t2.start()
 
     # Sleep until it gets a signal so Ctrl-C works
     signal.pause()

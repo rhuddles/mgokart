@@ -253,7 +253,7 @@ class Hokuyo(object):
             timestamp = decode(result[:3])
 
             scan = self.__get_and_parse_scan(cluster_count, self.START_STEP, self.STOP_STEP)
-            return scan, timestamp
+            return scan
 
         except BaseException as e:
             traceback.print_exc()
@@ -313,11 +313,11 @@ class Hokuyo(object):
         if self.__scanning_allowed:
             return self.get_single_scan()
 
-        else: return [], 0
+        else: return []
 
         self.__scan_lock.acquire()
         try:
-            return self.__angles, self.__distances, self.__timestamp
+            return self.__distances
         finally:
             self.__scan_lock.release()
 
