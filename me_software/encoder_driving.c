@@ -1,29 +1,28 @@
 #include <mraa/gpio.h>
 #include <unistd.h>
+#include <math.h>
 
-#define DELTA_TIME 100000 // 40 us = 25 kHz
-#define COUNTS_PER_REV 20.0 // (48 counts/rev) * (9.7:1 gear ratio)
+#define GEAR_RATIO (8.0 / 52.0)
+#define WHEEL_RADIUS .15
+#define WHEEL_CIRCUMFERENCE (2.0 * M_PI * WHEEL_RADIUS)
 
-// Steering Wheel
+const double COUNTS_PER_REV = 20.0;
+
+// Steering Wheel Pins
 //const int SPEED_INTERRUPT_PIN_A = 4;
 //const int SPEED_INTERRUPT_PIN_B = 6;
 
+// Wheel Speed Pins
 const int SPEED_INTERRUPT_PIN_A = 7;
 const int SPEED_INTERRUPT_PIN_B = 8;
 
 mraa_gpio_context speed_encoder_a;
 mraa_gpio_context speed_encoder_b;
 
-volatile int encoder = 0;
+volatile long encoder = 0;
+volatile long old_pos = 0;
 
-int oldPos = 0;
-
-//float throttle = 0;
-
-//int T = 50;
-
-// TODO: make microseconds
-time_t last_time;
+struct timespec new_time, last_time;
 
 void edison_isrA(void *);
 void edison_isrB(void *);
@@ -39,43 +38,64 @@ int main()
 
 	// register interrupts
 	mraa_gpio_isr(speed_encoder_a, MRAA_GPIO_EDGE_BOTH, &edison_isrA, NULL);
-	mraa_gpio_isr(speed_encoder_b, MRAA_GPIO_EDGE_BOTH, &edison_isrB, NULL);
+	//mraa_gpio_isr(speed_encoder_b, MRAA_GPIO_EDGE_BOTH, &edison_isrB, NULL);
 
-	last_time = time(NULL);
+	clock_gettime(CLOCK_MONOTONIC, &last_time);
+
+	FILE *output_file = fopen("output", "w");
 
 	while (1) {
-		//printf("Encoder: %d\n", encoder);
-		int newPos = encoder;
-		time_t newTime = time(NULL);
-		float period = (float)difftime(newTime, last_time);
-		float omega = (((float)(newPos - oldPos)) * .15 * 2.0 * 3.14)/(period * COUNTS_PER_REV);
+		long count_delta = encoder - old_pos;
+		fprintf(output_file, "Old count: %ld\n", old_pos);
+		fprintf(output_file, "Count: %ld\n", encoder);
+		fprintf(output_file, "Delta Count: %ld\n", count_delta);
 
-		oldPos = newPos;
-		last_time = newTime;
+		clock_gettime(CLOCK_MONOTONIC, &new_time);
+		double period = (new_time.tv_sec - last_time.tv_sec) +
+			(new_time.tv_nsec - last_time.tv_nsec) / 1000000000.0; // seconds
+		fprintf(output_file, "Period: %f\n", period);
 
-		printf("%f m/s\n", omega);
+		double omega = (count_delta * WHEEL_CIRCUMFERENCE * GEAR_RATIO) / (period * COUNTS_PER_REV);
+
+		old_pos = encoder;
+		last_time = new_time;
+
+		fprintf(output_file, "%f m/s\n\n", omega);
 
 		usleep(100000);
 	}
 
 	mraa_gpio_close(speed_encoder_a);
 	mraa_gpio_close(speed_encoder_b);
-	return 0;
+
+	return MRAA_SUCCESS;
 }
 
 void edison_isrA(void *params)
 {
+	// Debouncing
+	static int8_t encoder_states[] = {0, -1, 1, 0, 1, 0, 0, -1, -1, 0, 0, 1, 0, 1, -1, 0};
+	static uint8_t old_AB = 0;
+
 	int channelA = mraa_gpio_read(speed_encoder_a);
 	int channelB = mraa_gpio_read(speed_encoder_b);
 
-	if (channelA == channelB) {
-		// encoder values are the same->positive rotation
-		encoder--;
-	}
-	else {
-		// encoder values are different->negative rotation
+	old_AB <<= 2;
+	old_AB |= (channelA & 0x1) << 1;
+	old_AB |= (channelB & 0x1);
+
+	if (encoder_states[old_AB & 0xf] != 0) {
 		encoder++;
 	}
+
+	//if (channelA == channelB) {
+	//	// encoder values are the same->positive rotation
+	//	encoder--;
+	//}
+	//else {
+	//	// encoder values are different->negative rotation
+	//	encoder++;
+	//}
 }
 
 void edison_isrB(void *params)
