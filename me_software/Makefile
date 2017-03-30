@@ -11,8 +11,8 @@ encoder: encoder_driving.c
 dpdt: dpdt.c dpdt.h
 	gcc -c dpdt.c -l mraa
 
-throttle: throttle_signal.c
-	gcc throttle_signal.c -l mraa -o throttle
+throttle: throttle_control.c
+	gcc throttle_control.c -l mraa -o throttle
 
 i2c: i2c.c
 	gcc i2c.c -l mraa -o i2c
