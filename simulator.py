@@ -52,6 +52,12 @@ VEHICLE_ACCELERATION = 5 # Max acceleration in m/s^2
 VEHICLE_DECELERATION = 5 # Max deceleration in m/s^2
 L = 942.0 #Wheel base in mm
 
+# Save file contents:
+# Cone x,y points
+# Delimiter line
+# Center x,y points
+SAVE_FILE_DELIMITER_LINE = '-----\n'
+
 
 def dist(p0, p1):
     return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
@@ -66,6 +72,10 @@ class CourseMaker(QWidget):
         # Flags
         self.editFlag = False
         self.sim_on = False
+        self.mark_cone = True
+
+        # Course center points
+        self.center_points = []
 
         # Input data
         self.gui_points = []
@@ -133,7 +143,7 @@ class CourseMaker(QWidget):
         for point in self.detected_cones:
             cones_list.append(point[0])
 
-        
+
         finish_line = fl.detect_finish_line(cones_list)
         if len(finish_line) == 2:
             self.finish_cones = finish_line[0] + finish_line[1]
@@ -145,7 +155,7 @@ class CourseMaker(QWidget):
         try:
             while bm_on:
                 self.right_bound, self.left_bound = bm.create_boundary_lines(list(cones_list))
-                
+
                 if (len(self.left_bound) + len(self.right_bound) + 2) < len(cones_list):
                     if len(self.left_bound) < len(self.right_bound):
                         cones_list.pop(0)
@@ -196,16 +206,12 @@ class CourseMaker(QWidget):
             traceback.print_exc()
             self.target_speed = 0
 
-    def moveVehicle(self):
-        '''
-        Transforms gui points into new positions based on vehicle parameters and step size
-        '''
-
+    def movePoints(self, points):
         # Cones in transformation
         coords = []
 
         # Convert from gui frame to lidar frame
-        for point in self.gui_points:
+        for point in points:
             x = (point[0] - self.lidar_pos[0])*scaling_factor
             y = (self.lidar_pos[1] - point[1])*scaling_factor
 
@@ -221,7 +227,14 @@ class CourseMaker(QWidget):
 
             coords.append((guiX,guiY))
 
-        self.gui_points = coords
+        return coords
+
+    def moveVehicle(self):
+        '''
+        Transforms gui points into new positions based on vehicle parameters and step size
+        '''
+        self.gui_points = self.movePoints(self.gui_points)
+        self.center_points = self.movePoints(self.center_points)
 
     def updateActuators(self):
         '''
@@ -286,12 +299,17 @@ class CourseMaker(QWidget):
         self.editFlag = flag
         self.update()
 
+    def setMarkCone(self, flag):
+        self.mark_cone = flag
+        self.update()
+
     def clearMap(self):
         '''
         Clears all input points from map. Editing must be enabled for this to work.
         '''
         if self.editFlag:
             self.gui_points = []
+            self.center_points = []
             self.detected_cones = []
             self.right_bound = []
             self.left_bound = []
@@ -357,6 +375,12 @@ class CourseMaker(QWidget):
         for p in self.gui_points:
             paint.drawEllipse(QPoint(p[0],p[1]), cone_rad, cone_rad)
 
+        # Draw center points
+        paint.setBrush(Qt.blue)
+        paint.setPen(Qt.blue)
+        for p in self.center_points:
+            paint.drawEllipse(QPoint(p[0], p[1]), cone_rad/2., cone_rad/2.)
+
         # Give size hint if editing enabled
         if self.editFlag and len(self.gui_points):
             paint.setPen(Qt.darkBlue)
@@ -389,8 +413,21 @@ class CourseMaker(QWidget):
     def mouseReleaseEvent(self, QMouseEvent):
         if self.editFlag:
             p = QMouseEvent.pos()
-            self.gui_points.append((p.x(),p.y()))
+
+            if self.mark_cone:
+                self.gui_points.append((p.x(),p.y()))
+            else:
+                self.center_points.append((p.x(), p.y()))
+
             self.update()
+
+    def scalePoints(self, points, old_factor, scaling_factor):
+        new_points = []
+        for p in points:
+            px = float(p[0]-self.lidar_pos[0])*old_factor/scaling_factor + self.lidar_pos[0]
+            py = float(p[1]-self.lidar_pos[1])*old_factor/scaling_factor + self.lidar_pos[1]
+            new_points.append((px,py))
+        return new_points
 
     def wheelEvent(self, event):
         global scaling_factor
@@ -399,13 +436,9 @@ class CourseMaker(QWidget):
         if scaling_factor < 1:
             scaling_factor = 1
 
-        new_gui_points = []
-        for p in self.gui_points:
-            px = float(p[0]-self.lidar_pos[0])*old_factor/scaling_factor + self.lidar_pos[0]
-            py = float(p[1]-self.lidar_pos[1])*old_factor/scaling_factor + self.lidar_pos[1]
-            new_gui_points.append((px,py))
+        self.gui_points = self.scalePoints(self.gui_points, old_factor, scaling_factor)
+        self.center_points = self.scalePoints(self.center_points, old_factor, scaling_factor)
 
-        self.gui_points = new_gui_points
         self.update()
 
     def initUI(self):
@@ -461,15 +494,31 @@ class Simulator(QMainWindow):
     def runClear(self):
         self.course.clearMap()
 
+    def savePoints(self, points, file):
+        for p in points:
+            x_coord = float(p[0] - self.course.lidar_pos[0])*scaling_factor
+            y_coord = float(p[1] - self.course.lidar_pos[1])*scaling_factor
+            file.write(str(x_coord)+' '+str(y_coord) + '\n')
+
     def save(self):
         Tk().withdraw()
         file = asksaveasfile(initialdir = './courses')
         if not file: return
-        for p in self.course.gui_points:
-            x_coord = float(p[0] - self.course.lidar_pos[0])*scaling_factor
-            y_coord = float(p[1] - self.course.lidar_pos[1])*scaling_factor
-            file.write(str(x_coord)+' '+str(y_coord) + '\n')
+        self.savePoints(self.course.gui_points, file)
+        file.write(SAVE_FILE_DELIMITER_LINE)
+        self.savePoints(self.course.center_points, file)
         file.close()
+
+    def loadPoints(self, file):
+        points = []
+        for line in file:
+            if line == SAVE_FILE_DELIMITER_LINE:
+                break
+            point = line.split()
+            x_coord = int(float(point[0])/scaling_factor + self.course.lidar_pos[0])
+            y_coord = int(float(point[1])/scaling_factor + self.course.lidar_pos[1])
+            points.append((x_coord, y_coord))
+        return points
 
     def load(self):
         Tk().withdraw()
@@ -478,11 +527,8 @@ class Simulator(QMainWindow):
         self.course.enableEdits(True)
         self.course.clearMap()
         self.course.enableEdits(False)
-        for line in file:
-            point = line.split()
-            x_coord = int(float(point[0])/scaling_factor + self.course.lidar_pos[0])
-            y_coord = int(float(point[1])/scaling_factor + self.course.lidar_pos[1])
-            self.course.gui_points.append((x_coord, y_coord))
+        self.course.gui_points = self.loadPoints(file)
+        self.course.center_points = self.loadPoints(file)
         file.close()
         self.course.update()
 
@@ -515,7 +561,7 @@ class Simulator(QMainWindow):
 
             # Run filtering algorithm. TODO: Add short term memory
             cones = fd.get_cones(frame, None, None)
-            
+
             # Get matches
             for pc in prev_cones_list:
                 for nc in cones:
@@ -538,7 +584,7 @@ class Simulator(QMainWindow):
             no_ref = False
             if len(global_cones_list) < 2:
                 no_ref = True
-            else:   
+            else:
                 for cc in current_cones_list:
                     if cc[2] > 0:
                         ref_cone = cc
@@ -560,7 +606,7 @@ class Simulator(QMainWindow):
 
             # Save list
             prev_cones_list = current_cones_list
-        
+
         self.course.enableEdits(True)
         self.course.clearMap()
         self.course.enableEdits(False)
@@ -594,6 +640,14 @@ class Simulator(QMainWindow):
             self.sim_thread.start()
             self.sim_on = True
 
+    def setMarkCone(self):
+        self.mark_cone = True
+        self.course.setMarkCone(self.mark_cone)
+
+    def setMarkCenter(self):
+        self.mark_cone = False
+        self.course.setMarkCone(self.mark_cone)
+
 
     def initUI(self):
 
@@ -604,6 +658,14 @@ class Simulator(QMainWindow):
         map_label = QLabel("Map Functions")
 
         self.edit_button = QPushButton('Enable Map Editing')
+
+        self.click_for_cone_radio = QRadioButton('Mark Cone')
+        self.click_for_cone_radio.setChecked(True)
+        self.click_for_center_radio = QRadioButton('Mark Center')
+        self.radio_group = QButtonGroup()
+        self.radio_group.addButton(self.click_for_cone_radio)
+        self.radio_group.addButton(self.click_for_center_radio)
+
         undo_button = QPushButton('Undo')
         clear_button = QPushButton('Clear Map')
         save_button = QPushButton('Save Map')
@@ -611,6 +673,8 @@ class Simulator(QMainWindow):
         load_lidar_button = QPushButton('Load Lidar')
 
         self.edit_button.clicked.connect(self.editMap)
+        self.click_for_cone_radio.clicked.connect(self.setMarkCone)
+        self.click_for_center_radio.clicked.connect(self.setMarkCenter)
         undo_button.clicked.connect(self.course.undoPlaceCone)
         clear_button.clicked.connect(self.runClear)
         save_button.clicked.connect(self.save)
@@ -646,6 +710,8 @@ class Simulator(QMainWindow):
         # Map
         menuLayout.addWidget(map_label)
         menuLayout.addWidget(self.edit_button)
+        menuLayout.addWidget(self.click_for_cone_radio)
+        menuLayout.addWidget(self.click_for_center_radio)
         menuLayout.addWidget(undo_button)
         menuLayout.addWidget(clear_button)
         menuLayout.addWidget(save_button)
