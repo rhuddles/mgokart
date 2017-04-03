@@ -49,7 +49,7 @@ void dataRequested() {
   String message = String(encoder);
   char cstr[MESSAGE_LEN] = {0};
   message.toCharArray(cstr, MESSAGE_LEN);
-  Wire.write(cstr, MESSAGE_LEN);
+  Wire.write((uint8_t*)cstr, MESSAGE_LEN);
 }
 
 void setup() {
