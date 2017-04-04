@@ -67,6 +67,7 @@ def vehicle_state_updates(log_filename, conn):
     with open(log_filename, 'w') as log:
         while True:
             speed, steering = receive(conn, MESSAGE_LENGTH)
+            print speed, steering
             log_vehicle_state(log, speed, steering)
 
 # LIDAR updates listener thread
@@ -97,20 +98,20 @@ if __name__ == '__main__':
     if not os.path.isdir(LOG_DIRECTORY):
         os.mkdir(LOG_DIRECTORY)
 
-    lidar = enable_laser()
+#    lidar = enable_laser()
 #    lidar = None
     conn = init_connection(port)
 
     # Start listener threads
     t1 = threading.Thread(target=vehicle_state_updates, args=(vehicle_log, conn))
-    t2 = threading.Thread(target=lidar_updates, args=(lidar_log, lidar))
+#    t2 = threading.Thread(target=lidar_updates, args=(lidar_log, lidar))
 
     # Only want main thread to control program lifetime so Ctrl-C works
     t1.daemon = True
-    t2.daemon = True
+#    t2.daemon = True
 
     t1.start()
-    t2.start()
+#    t2.start()
 
     # Sleep until it gets a signal so Ctrl-C works
     signal.pause()
