@@ -12,6 +12,7 @@ from regression_steering import boundaries_to_steering
 from utility import regression, separate_and_flip
 from hokuyo import enable_laser
 
+from datetime import datetime
 import math
 import os
 import sys
@@ -52,7 +53,7 @@ if __name__ == '__main__':
 
     # laser = enable_laser()
     init_boundaries()
-    # connection = init_connection(ME_PORT)
+    connection = init_connection(ME_PORT)
 
     for filename in files:
         # For LIDAR use
@@ -65,25 +66,37 @@ if __name__ == '__main__':
 
         # For csv file use
         data = parse_csv_data(filename, FOV)
+        print 'done parsing'
         # --
 
         for frame in data:
 
+            start = datetime.now()
+            checkpoint = datetime.now()
             # Predict new boundary locations
             predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
                     curr_speed, curr_bearing)
             if predicted_left and predicted_right:
                 set_boundaries(predicted_left, predicted_right)
 
+            print 'Prediction took %s seconds' % str(datetime.now() - checkpoint)
+            checkpoint = datetime.now()
+
             lp, rp = LEFT_COEFS, RIGHT_COEFS
             # Filtering
             cones = get_cones(frame, LEFT_COEFS, RIGHT_COEFS)
-            plot_cones = list(cones)
+#            plot_cones = list(cones)
+
+            print 'Filtering took %s seconds' % str(datetime.now() - checkpoint)
+            checkpoint = datetime.now()
 
             # Finish line detection
             if detect_finish_line(cones):
                 LAP_COUNT += 1
                 # TODO: Stop if 10...
+
+            print 'Finish line took %s seconds' % str(datetime.now() - checkpoint)
+            checkpoint = datetime.now()
 
             # Boundary mapping
             left_boundary, right_boundary = create_boundary_lines(cones)
@@ -91,35 +104,46 @@ if __name__ == '__main__':
                     LEFT_BOUNDARY, RIGHT_BOUNDARY)
             set_boundaries(left_boundary, right_boundary)
 
+            print 'Boundary mapping took %s seconds' % str(datetime.now() - checkpoint)
+            checkpoint = datetime.now()
+
             # Lane keeping (speed)
             speed = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY)
+
+            print 'Speed took %s seconds' % str(datetime.now() - checkpoint)
+            checkpoint = datetime.now()
 
             # Lane keeping (steering)
             bearing = boundaries_to_steering(LEFT_BOUNDARY, RIGHT_BOUNDARY)
 
-            # Plotting
+            print 'Steering took %s seconds' % str(datetime.now() - checkpoint)
 
-            # Plot cones and boundaries
-            plot = plot_boundaries(plot_cones, LEFT_BOUNDARY, RIGHT_BOUNDARY)
-
-            # Plot heading vector
-            vecx = 1000 * speed * math.sin(math.radians(bearing))
-            vecy = 1000 * speed * math.cos(math.radians(bearing))
-            plot.plot([0, vecx], [0, vecy], 'k', label='Trend Line')
-
-            # Plot reference vector
-            plot.plot([0, 0], [1000 * coord for coord in [0, 1]], '--g', label='Reference Line')
-
-            plot.legend(loc='upper left')
-
-            xmin, xmax = plot.xlim()
-            ymin, ymax = plot.ylim()
-            plot.text(xmax, ymax + 700, 'Speed: %5.2f m/s' % speed)
-            plot.text(xmax, ymax + 300, 'Bearing: %5.2f degrees' % bearing)
-            plot.draw()
-            plot.pause(0.00001)
-            plot.gcf().clear()
+            print 'Took %s seconds' % str(datetime.now() - start)
+#            # Plotting
+#
+#            # Plot cones and boundaries
+#            plot = plot_boundaries(plot_cones, LEFT_BOUNDARY, RIGHT_BOUNDARY)
+#
+#            # Plot heading vector
+#            vecx = 1000 * speed * math.sin(math.radians(bearing))
+#            vecy = 1000 * speed * math.cos(math.radians(bearing))
+#            plot.plot([0, vecx], [0, vecy], 'k', label='Trend Line')
+#
+#            # Plot reference vector
+#            plot.plot([0, 0], [1000 * coord for coord in [0, 1]], '--g', label='Reference Line')
+#
+#            plot.legend(loc='upper left')
+#
+#            xmin, xmax = plot.xlim()
+#            ymin, ymax = plot.ylim()
+#            plot.text(xmax, ymax + 700, 'Speed: %5.2f m/s' % speed)
+#            plot.text(xmax, ymax + 300, 'Bearing: %5.2f degrees' % bearing)
+#            plot.draw()
+#            plot.pause(0.00001)
+#            plot.gcf().clear()
 
             # Write to socket
-            # send(ME_PORT, '%05.1f,%05.1f' % (speed, bearing))
+            print 'Speed:\t%05.1f' % speed
+            print 'Bearing:\t%05.1f' % bearing
+            send(connection, '%05.1f,%05.1f' % (speed, bearing))
 
