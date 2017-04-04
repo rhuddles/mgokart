@@ -8,6 +8,8 @@
 
 #define DEFAULT_PORT 8090
 
+#define COUNTS_TO_DEGREES = (62. / 39212.)
+
 const int I2C_ADDRESS0 = 2;
 const int I2C_ADDRESS1 = 3;
 
@@ -37,15 +39,14 @@ int main(void)
     
     printf("Connected to socket!\n");
 
-    const int buf_len = 6;
+    const int buf_len = 10;
     char buf[buf_len];
 
     const int buf_len1 = 10;
     char buf1[buf_len1];
 
     mraa_i2c_context i2c0 = mraa_i2c_init(0); // Set as master
-    mraa_i2c_context i2c1 = mraa_i2c_init(0); // Set as master
-
+    mraa_i2c_context i2c1 = mraa_i2c_init(0); // Set as master 
     mraa_i2c_address(i2c0, I2C_ADDRESS0);
     mraa_i2c_address(i2c1, I2C_ADDRESS1);
 
@@ -57,6 +58,8 @@ int main(void)
 
 	double speed = atof(buf);
 	double bearing  = atof(buf1);
+	double angle = bearing * COUNTS_TO_DEGREES;
+        fprintf(stderr, "Steering Angle: %f\n", angle);
 
 	send_update(sock, speed, bearing);
 
