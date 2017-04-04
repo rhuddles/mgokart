@@ -13,7 +13,7 @@ extern const int DPDT_FORWARD;
 extern const int DPDT_REVERSE;
 
 /*
- * Create a GPIO context and initialize it to output, initial value LOW
+ * Create a GPIO context and initialize it to output, initial to FORWARD
  */
 mraa_gpio_context init_dpdt();
 

@@ -111,9 +111,9 @@ int stepper_simple()
 
 	//Set up some initial acceleration and velocity values
 	CPhidgetStepper_getAccelerationMin(stepper, 0, &minAccel);
-	CPhidgetStepper_setAcceleration(stepper, 0, minAccel*2);
+	CPhidgetStepper_setAcceleration(stepper, 0, 12500);
 	CPhidgetStepper_getVelocityMax(stepper, 0, &maxVel);
-	CPhidgetStepper_setVelocityLimit(stepper, 0, maxVel/2);
+	CPhidgetStepper_setVelocityLimit(stepper, 0, 100000);
 
 	//display current motor position if available
 	if(CPhidgetStepper_getCurrentPosition(stepper, 0, &curr_pos) == EPHIDGET_OK)
@@ -133,17 +133,11 @@ int stepper_simple()
 	CPhidgetStepper_setCurrentPosition(stepper, 0, 0);
 	CPhidgetStepper_setEngaged(stepper, 0, 1);
 
-	//Step 2: Position 200
-	printf("Move to position 200. Press any key to Continue\n");
-	getchar();
-
-	CPhidgetStepper_setTargetPosition (stepper, 0, 200);
-
 	//Step 3: Position -1200
 	printf("Move to position -1200. Press any key to Continue\n");
 	getchar();
 
-	CPhidgetStepper_setTargetPosition (stepper, 0, -1200);
+	CPhidgetStepper_setTargetPosition (stepper, 0, -65000);
 
 	//Step 4: Set to 0, wait for it to reach position, Disengage
 	printf("Reset to 0 and disengage motor. Press any key to Continue\n");

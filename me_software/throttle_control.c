@@ -3,13 +3,15 @@
 
 #include <signal.h>
 
+#include "dpdt.h"
+
 const int THROTTLE_SIGNAL_ANA = 0;
 const int THROTTLE_SIGNAL_PWM = 5;
 
 const int MANUAL_SWITCH_PIN = 9;
 
 const int REFERENCE_VOLTAGE = 5;
-const int BATTERY_VOLTAGE = 9;
+const int BATTERY_VOLTAGE = 5;
 
 int running = 1;
 
@@ -23,6 +25,10 @@ float read_mps();
 
 int main(void)
 {
+	// Set DPDT
+	mraa_gpio_context dpdt_pin = init_dpdt();
+	mraa_gpio_write(dpdt_pin, DPDT_FORWARD);
+
 	// Init GPIO
 	mraa_gpio_context manual_switch = mraa_gpio_init(MANUAL_SWITCH_PIN);
 	mraa_gpio_dir(manual_switch, MRAA_GPIO_IN);
@@ -46,20 +52,20 @@ int main(void)
 
 		// Read Analog
 		if (manual) {
-		    fprintf(stderr, "Manual Mode\n");
-		    signal_out = read_analog_signal(throttle_in);
+		    fprintf(stderr, "Autonomous Mode\n");
+		    signal_out = read_mps();
 		}
 		// Read m/s
 		else {
-		    fprintf(stderr, "Autonomous Mode\n");
-		    signal_out = read_mps();
+		    fprintf(stderr, "Manual Mode\n");
+		    signal_out = read_analog_signal(throttle_in);
 		}
 
 		// Write PWM
 		mraa_pwm_write(throttle_out, signal_out);
 		fprintf(stderr, "Write %f to pin %d\n\n", signal_out, THROTTLE_SIGNAL_PWM);
 
-		usleep(1000000); // 1s
+		usleep(1000000);
 	}
 
 	mraa_gpio_close(manual_switch);

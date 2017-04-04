@@ -32,14 +32,14 @@ void get_commands(int sock)
 	char speed[5], bearing[5], buf[12];
 	while (running)
 	{
-		//errno = read(sock, buf, sizeof(buf));
+		errno = read(sock, buf, sizeof(buf));
 		
 		memcpy(speed, buf, 5);
 		memcpy(bearing, buf+6, 5);
 		SPEED = atof(speed);
 		BEARING = atof(bearing);
-		//printf("Speed:\t\t%+5.1f\n", SPEED);
-		//printf("Bearing:\t%+5.1f\n\n", BEARING);
+		printf("Speed:\t\t%+5.1f\n", SPEED);
+		printf("Bearing:\t%+5.1f\n\n", BEARING);
 	}
 }
 

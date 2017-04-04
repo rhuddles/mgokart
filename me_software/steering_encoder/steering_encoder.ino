@@ -9,7 +9,7 @@ const int encoderB = 2;
 const int interruptA = 1;
 const int interruptB = 0;
 
-volatile int encoder = 0;
+volatile long encoder = 0;
 
 const int MSG_LEN = 6;
 
