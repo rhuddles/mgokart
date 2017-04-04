@@ -287,6 +287,7 @@ class CourseMaker(QWidget):
         Run simulation continuously until stopped
         '''
         while self.sim_on:
+            time.sleep(.02)
             self.stepSim()
 
 
