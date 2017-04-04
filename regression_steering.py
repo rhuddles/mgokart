@@ -14,39 +14,25 @@ try:
 except:
     pass
 
+WHEELBASE = 942.0
+
 def plot_line(coefs, min_x, max_x, style='-k'):
     f = np.poly1d(coefs)
     x = np.linspace(min_x, max_x, 20000)
     return plt.plot(x, f(x), style)
 
 def predict_next_pos(speed, dt):
-    return np.array([speed * dt, 0])
+    return np.array([speed * dt, 0.0])
 
-def get_closest_point_on_curve(path, off_curve_pt, min_x=0, max_x=5000):
-    xs = np.linspace(min_x, max_x, abs(max_x) + abs(min_x))
-    curve_pts = [(x, path(x)) for x in xs]
-
-    return min(curve_pts, key=lambda pt: dist(off_curve_pt, pt))
-
-def get_waypoint(path, speed):
-    # in 3 seconds we want to be back on path
-    off_path_pt = [speed * 3, 0]
-
-    # get closest point on curve to the chosen off path point
-    on_path_pt = get_closest_point_on_curve(path, off_path_pt)
-    return on_path_pt
-
-def dist_from_center(path):
-    pos = [0., 0.]
-    center = get_closest_point_on_curve(path, pos, min_x=-5000, max_x=5000)
-    return dist(pos, center)
+def get_point_on_curve(path, off_curve_pt):
+    return (off_curve_pt[0], path(off_curve_pt[0]))
 
 def get_steering_command(path, speed, dt, plot=False):
     # tune distance of this point, further = less steep turning
-    next_pos = predict_next_pos(speed, dt * 7)
+    next_pos = predict_next_pos(speed, dt * 7.0)
 
     # vector from vehicle state to reference state
-    error = get_closest_point_on_curve(path, next_pos, min_x=-5000, max_x=5000)
+    error = get_point_on_curve(path, next_pos)
 
     # coefficient of quadratic path
     A = error[1] / error[0]**2
@@ -58,18 +44,16 @@ def get_steering_command(path, speed, dt, plot=False):
         plt.plot(xs, ys, 'b')
 
     # calculate desired vehicle speed and angular velocity
-    new_speed = math.sqrt(speed**2 * (1 + (4 * A**2 * (speed * dt))))
-    w = (2 * A * speed**3) / (new_speed**2)
-
-    # yea sure
-    wheelbase = 942
+    new_speed = math.sqrt(speed**2 * (1.0 + (4.0 * A**2 * (speed * dt))))
+    w = (2.0 * A * speed**3) / (new_speed**2)
 
     # steering angle = (angular velocity * wheelbase) / velocity
-    theta = (w * wheelbase) / speed
+    theta = (w * WHEELBASE) / speed
 
     # we say positive angles are clockwise rotations
     theta *= -1
 
+    # bound steering angle to [-pi/4, pi/4]
     theta = theta if theta > -math.pi/4 else -math.pi/4
     theta = theta if theta < math.pi/4 else math.pi/4
 
