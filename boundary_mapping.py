@@ -3,6 +3,7 @@
 from parse_data import parse_csv_data
 from operator import itemgetter
 from filter_data import *
+from utility import *
 
 import math
 import sys
@@ -20,12 +21,6 @@ VERTICAL_SLOPE = sys.maxint # "Infinity"
 
 def dist(p0, p1):
     return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
-
-def angle_between(u, v):
-    # cos(theta) = (u dot v) / (||u|| * ||v||)
-    num = u[0] * v[0] + u[1] * v[1]
-    den = dist((0, 0), u) * dist((0, 0), v)
-    return math.acos(num / den)
 
 def find_lower_left_cone(cones):
     # Get lower-leftmost cone
