@@ -3,11 +3,11 @@
 #define I2C_BUS_ADDRESS 3
 #define MESSAGE_LEN 10
 
-const int encoderA = 3;
-const int encoderB = 2;
+const int encoderA = 1;
+const int encoderB = 0;
 
-const int interruptA = 1;
-const int interruptB = 0;
+const int interruptA = 3;
+const int interruptB = 2;
 
 volatile long encoder = 0;
 
@@ -45,7 +45,6 @@ double countToDegrees(int count) {
 }
 
 void dataRequested() {
-  Serial.println(encoder);
   String message = String(encoder);
   char cstr[MESSAGE_LEN] = {0};
   message.toCharArray(cstr, MESSAGE_LEN);
@@ -64,6 +63,5 @@ void setup() {
 
 void loop() {
   // lol
-  while (true) {}
 }
 
