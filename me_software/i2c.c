@@ -8,7 +8,7 @@
 
 #define DEFAULT_PORT 8090
 
-#define COUNTS_TO_DEGREES = (62. / 39212.)
+#define COUNTS_TO_DEGREES (62. / 39212.)
 
 const int I2C_ADDRESS0 = 2;
 const int I2C_ADDRESS1 = 3;
