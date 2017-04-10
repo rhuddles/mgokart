@@ -47,7 +47,7 @@ def filter_data(data, left_coefs, right_coefs):
         dist = math.sqrt(pt[0]**2 + pt[1]**2)
 
         # These numbers are super arbitrary right now
-        # 30 mm for minumum distance from lidar spec
+        # 500 mm for minimum distance from LIDAR spec
         # 10000 mm for 10 m cause why not
         if (dist < 10000 and dist > 500):
             pass_one.append(pt)
