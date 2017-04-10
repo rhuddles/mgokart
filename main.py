@@ -108,7 +108,8 @@ if __name__ == '__main__':
             checkpoint = datetime.now()
 
             # Lane keeping (speed)
-            speed = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY)
+            speed, count_lap  = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY)
+            LAP_COUNT = LAP_COUNT + int(count_lap)
 
             print 'Speed took %s seconds' % str(datetime.now() - checkpoint)
             checkpoint = datetime.now()

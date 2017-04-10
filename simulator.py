@@ -83,6 +83,8 @@ class CourseMaker(QWidget):
         # Algorithm params
         self.detected_cones = []
         self.finish_cones = []
+        self.last_finish_line = []
+        self.lap_num = 0
         self.left_bound = []
         self.right_bound = []
         self.target_steering = 0
@@ -143,12 +145,13 @@ class CourseMaker(QWidget):
         for point in self.detected_cones:
             cones_list.append(point[0])
 
-
-        finish_line = fl.detect_finish_line(cones_list)
+        finish_line, count_lap  = fl.detect_finish_line(cones_list)
         if len(finish_line) == 2:
             self.finish_cones = finish_line[0] + finish_line[1]
         elif len(finish_line) == 1:
             self.finish_cones = finish_line[0]
+
+        self.lap_num = self.lap_num + int(count_lap)
 
         # Run boundary mapping algorithms
         bm_on = True
@@ -200,7 +203,7 @@ class CourseMaker(QWidget):
             self.target_steering = 0
 
         try:
-            self.target_speed = ps.get_next_speed(list(self.left_bound), list(self.right_bound))
+            self.target_speed = ps.get_next_speed(list(self.left_bound), list(self.right_bound), self.lap_num)
         except Exception, e:
             print('Error running lane keeping (speed)!')
             traceback.print_exc()
@@ -481,6 +484,7 @@ class Simulator(QMainWindow):
     def updateStatus(self):
         self.steering_value.setText(str(self.course.steering))
         self.target_speed_value.setText(str(self.course.speed))
+        self.lap_num_value.setText(str(self.course.lap_num))
 
     def editMap(self):
         if self.editFlag:
@@ -702,6 +706,8 @@ class Simulator(QMainWindow):
         self.steering_value = QLabel('0')
         speed_label = QLabel('Speed (m/s):')
         self.target_speed_value = QLabel('0')
+        lap_label = QLabel('Lap Number:')
+        self.lap_num_value = QLabel('0')
 
         ###--- Menu Layout ---###
 
@@ -730,6 +736,8 @@ class Simulator(QMainWindow):
         menuLayout.addWidget(self.steering_value)
         menuLayout.addWidget(speed_label)
         menuLayout.addWidget(self.target_speed_value)
+        menuLayout.addWidget(lap_label)
+        menuLayout.addWidget(self.lap_num_value)
 
         menuWidget = QWidget()
         menuWidget.setLayout(menuLayout)

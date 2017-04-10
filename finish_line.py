@@ -77,8 +77,8 @@ def remove_outside_cones(group, cones):
 # Out: True if we have passed the finish line; modifies cones by removing extra
 #       cones from finish line groups
 def detect_finish_line(cones):
+    count_lap = False
     finish_line_groups = get_finish_line_groups(cones)
-
     # TODO: This should examine the groups and apply the constraints above
     #       to check if this really is the finish line.
     #       If this is a finish line it should check we passed it and
@@ -86,8 +86,18 @@ def detect_finish_line(cones):
     for group in finish_line_groups:
         remove_outside_cones(group, cones)
 
+    if len(finish_line_groups) == 2:
+        if finish_line_groups[0][0][1] <= 0:
+            try:
+                if detect_finish_line.last_finish_line[0][0][1] > 0:
+                    count_lap = True
+            except AttributeError:
+                pass
+
+    detect_finish_line.last_finish_line = finish_line_groups
+
     # TODO: this eventually needs to be (left, right), easier with short term memory
-    return finish_line_groups
+    return finish_line_groups, count_lap
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

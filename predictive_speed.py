@@ -89,7 +89,10 @@ def get_vec(left_endpt, right_endpt):
 
 # In: Two lists of ordered points representing boundaries
 # Out: Speed
-def get_next_speed(left_boundary, right_boundary):
+def get_next_speed(left_boundary, right_boundary, lap_num):
+    if lap_num >= 10:
+        return 0
+
     # Find average vector of endpoints
     endpts = get_endpts(left_boundary, right_boundary)
     vec = get_vec(*endpts)
