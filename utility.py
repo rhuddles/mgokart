@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 
 import math
-import numpy
+import numpy as np
+import warnings
+
+# Ignore RankWarnings from regression
+warnings.simplefilter('ignore', np.RankWarning)
 
 def separate_xy(points):
     return ([point[0] for point in points],
@@ -28,4 +32,4 @@ def angle_between(u, v):
 
 def regression(boundary, degree=2):
     xs, ys = separate_and_flip(boundary)
-    return numpy.polyfit(xs, ys, degree)
+    return np.polyfit(xs, ys, degree)
