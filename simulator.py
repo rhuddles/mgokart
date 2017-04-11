@@ -564,8 +564,8 @@ class Simulator(QMainWindow):
             # Reset current cones
             current_cones_list = []
 
-            # Run filtering algorithm. TODO: Add short term memory
-            cones = fd.get_cones(frame, None, None)
+            # Run filtering algorithm.
+            cones = fd.get_cones(frame, [], [])
 
             # Get matches
             for pc in prev_cones_list:
