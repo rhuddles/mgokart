@@ -131,6 +131,7 @@ class CourseMaker(QWidget):
 
         # Sort cones by angle
         self.detected_cones = sorted(lidar_coords,key=itemgetter(2))
+        return self.detected_cones
 
     def boundaryMapping(self):
         '''
@@ -687,6 +688,7 @@ class Simulator(QMainWindow):
                 self.sock = -1
         else:
             # Disconnect
+            self.resetKart()
             self.sock.close()
 
             # Update GUI
@@ -694,11 +696,29 @@ class Simulator(QMainWindow):
             self.connect_status.setPalette(self.red_palette)
             self.connect_button.setText('Connect to kart')
 
-
     def sendSetpoint(self):
-        speed = self.speed_box.value()
-        angle = self.steering_box.value()
-        self.sock.send(str(speed)+',' +str(angle))
+        if self.sock != -1:
+            speed = self.speed_box.value()
+            angle = self.steering_box.value()
+            self.sock.send('S' + str(speed)+',' +str(angle))
+
+    def resetKart(self):
+        self.speed_box.setValue(0)
+        self.steering_box.setValue(0)
+        self.sendSetpoint()
+
+    def disableMotor(self, disabled):
+        if disabled:
+            self.speed_box.setValue(0)
+            self.speed_box.setMaximum(0)
+        else:
+            self.speed_box.setMaximum(10)
+
+    def runHitl(self):
+        print 'Running Hardware In The Loop Simulation'
+        cones = self.course.lidarScan()
+        if self.sock != -1:
+            self.sock.send('C' + str(cones))
 
     def initUI(self):
 
@@ -778,6 +798,12 @@ class Simulator(QMainWindow):
         self.connect_status = QLabel('Disconnected')
         self.connect_status.setPalette(self.red_palette)
         self.connect_button = QPushButton('Connect to kart')
+        motor_disable_button = QCheckBox('Disable Motor')
+        send_button = QPushButton('Send Setpoint')
+        reset_button = QPushButton('Reset Kart')
+        run_hitl_button = QPushButton('Run HITL Simulation')
+
+        # Setpoint boxes
         speed_label = QLabel('Speed:')
         steering_label = QLabel('Angle:')
         self.speed_box = QSpinBox()
@@ -785,7 +811,6 @@ class Simulator(QMainWindow):
         self.speed_box.setMaximum(10)
         self.steering_box.setMinimum(-33)
         self.steering_box.setMaximum(33)
-        send_button = QPushButton('Send Setpoint')
 
         speed_layout = QHBoxLayout()
         speed_layout.addWidget(speed_label)
@@ -797,15 +822,21 @@ class Simulator(QMainWindow):
         # Set event handlers
         self.connect_button.clicked.connect(self.openConnection)
         send_button.clicked.connect(self.sendSetpoint)
+        reset_button.clicked.connect(self.resetKart)
+        motor_disable_button.toggled.connect(self.disableMotor)
+        run_hitl_button.clicked.connect(self.runHitl)
 
         # Populate tab
         hitl_layout = QVBoxLayout(hitl_tab)
         hitl_layout.setAlignment(Qt.AlignTop)
         hitl_layout.addWidget(self.connect_status)
         hitl_layout.addWidget(self.connect_button)
+        hitl_layout.addWidget(motor_disable_button)
         hitl_layout.addLayout(speed_layout)
         hitl_layout.addLayout(steering_layout)
         hitl_layout.addWidget(send_button)
+        hitl_layout.addWidget(reset_button)
+        hitl_layout.addWidget(run_hitl_button)
         hitl_tab.setLayout(hitl_layout)
 
         ###--- Status box---###
