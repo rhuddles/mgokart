@@ -84,9 +84,9 @@ int main(void)
 			// edits speed and bearing to be the targets
 			get_commands(sock, &target_speed, &target_bearing);
 
-			printf("Speed: %f\tSteering:%f\n",speed, bearing);
+			printf("Speed: %f\tSteering:%f\n", target_speed, target_bearing);
 
-			volt_out = (speed + 4.587) / 4.483;
+			volt_out = (target_speed + 4.587) / 4.483;
 			signal_out = volt_out / 5.0;
 		}
 		else {
@@ -98,7 +98,10 @@ int main(void)
 		write_speed(throttle_out, signal_out);
 		move_stepper(stepper, target_bearing);
 
+		sleep(1000);
+
 		read_from_arduinos(i2c0, i2c1, &real_speed, &real_bearing);
+		printf("Real Speed: %f\tReal Bearing: %f\n", real_speed, real_bearing);
 		send_update(sock, real_speed, real_bearing);
 	}
 
