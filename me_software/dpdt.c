@@ -1,7 +1,5 @@
 #include "dpdt.h"
 
-#include <stdlib.h>
-
 const int DPDT_PIN = 3;
 
 const int DPDT_FORWARD = 0;

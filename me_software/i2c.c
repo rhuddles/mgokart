@@ -11,8 +11,8 @@ void read_from_arduinos(mraa_i2c_context i2c0, mraa_i2c_context i2c1,
     char buf[buf_len];
     char buf1[buf_len1];
 
-	mraa_i2c_read(i2c0, buf, buf_len);
-	mraa_i2c_read(i2c1, buf1, buf_len1);
+	mraa_i2c_read(i2c0, (uint8_t*)buf, buf_len);
+	mraa_i2c_read(i2c1, (uint8_t*)buf1, buf_len1);
 
 	*speed = atof(buf);
 	*bearing = atof(buf1);

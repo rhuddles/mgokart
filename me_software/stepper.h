@@ -1,13 +1,13 @@
 #ifndef STEPPER_H
 #define STEPPER_H
 
-#include <stdio.h>
 #include <phidget21.h>
+#include <stdio.h>
 
-CPhidgetStepperHandle setup_stepper();
+extern "C" CPhidgetStepperHandle setup_stepper();
 
-int move_stepper(CPhidgetStepperHandle stepper, float angle);
+extern "C" int move_stepper(CPhidgetStepperHandle stepper, float angle);
 
-void close_stepper(CPhidgetStepperHandle stepper);
+extern "C" void close_stepper(CPhidgetStepperHandle stepper);
 
 #endif
