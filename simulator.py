@@ -20,6 +20,7 @@ Lidar - Vehicle is the origin. 1 pixel = 20 mm
 import math
 import os
 import sys
+import socket
 import threading
 import time
 import traceback
@@ -469,6 +470,8 @@ class Simulator(QMainWindow):
     def __init__(self):
         super(Simulator, self).__init__()
 
+        self.sock = -1
+
         # Array of map edit buttons
         self.map_buttons = []
 
@@ -666,14 +669,36 @@ class Simulator(QMainWindow):
         '''
         Connect to gokart for HITL testing
         '''
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(('ip', 2000))
-        s.send('Hello')
+        if self.sock == -1:
+            try:
+                # Connect
+                self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.sock.connect(('35.2.135.78', 2000))
 
-        # Update GUI
-        self.connect_status.setText('Connected')
-        self.connect_status.setPalette(self.green_palette)
-        self.connect_button.setText('Disconnect from kart')
+                # Update GUI
+                self.connect_status.setText('Connected')
+                self.connect_status.setPalette(self.green_palette)
+                self.connect_button.setText('Disconnect from kart')
+            except:
+                # Update GUI
+                self.connect_status.setText('Connection Failed')
+                self.connect_status.setPalette(self.red_palette)
+                self.connect_button.setText('Connect to kart')
+                self.sock = -1
+        else:
+            # Disconnect
+            self.sock.close()
+
+            # Update GUI
+            self.connect_status.setText('Disconnected')
+            self.connect_status.setPalette(self.red_palette)
+            self.connect_button.setText('Connect to kart')
+
+
+    def sendSetpoint(self):
+        speed = self.speed_box.value()
+        angle = self.steering_box.value()
+        self.sock.send(str(speed)+',' +str(angle))
 
     def initUI(self):
 
@@ -688,7 +713,6 @@ class Simulator(QMainWindow):
         tab_widget.addTab(map_tab, 'Map Editing')
         tab_widget.addTab(sim_tab, 'Simulation')
         tab_widget.addTab(hitl_tab, 'HITL')
-
 
         ###--- Map Edit Tab ---###
         edit_button = QCheckBox('Enable Map Editing')
@@ -751,20 +775,38 @@ class Simulator(QMainWindow):
         sim_tab.setLayout(sim_layout)
 
         ###--- HITL tab ---###
-        self.connect_status = QLabel('Not Connected')
+        self.connect_status = QLabel('Disconnected')
         self.connect_status.setPalette(self.red_palette)
         self.connect_button = QPushButton('Connect to kart')
+        speed_label = QLabel('Speed:')
+        steering_label = QLabel('Angle:')
+        self.speed_box = QSpinBox()
+        self.steering_box = QSpinBox()
+        self.speed_box.setMaximum(10)
+        self.steering_box.setMinimum(-33)
+        self.steering_box.setMaximum(33)
+        send_button = QPushButton('Send Setpoint')
+
+        speed_layout = QHBoxLayout()
+        speed_layout.addWidget(speed_label)
+        speed_layout.addWidget(self.speed_box)
+        steering_layout = QHBoxLayout()
+        steering_layout.addWidget(steering_label)
+        steering_layout.addWidget(self.steering_box)
 
         # Set event handlers
         self.connect_button.clicked.connect(self.openConnection)
+        send_button.clicked.connect(self.sendSetpoint)
 
         # Populate tab
         hitl_layout = QVBoxLayout(hitl_tab)
         hitl_layout.setAlignment(Qt.AlignTop)
         hitl_layout.addWidget(self.connect_status)
         hitl_layout.addWidget(self.connect_button)
+        hitl_layout.addLayout(speed_layout)
+        hitl_layout.addLayout(steering_layout)
+        hitl_layout.addWidget(send_button)
         hitl_tab.setLayout(hitl_layout)
-
 
         ###--- Status box---###
         status_label = QLabel('Status')
@@ -774,7 +816,6 @@ class Simulator(QMainWindow):
         self.target_speed_value = QLabel('0')
         lap_label = QLabel('Lap Number:')
         self.lap_num_value = QLabel('0')
-
 
         ###--- Menu Layout ---###
         menuLayout = QVBoxLayout()
@@ -798,7 +839,6 @@ class Simulator(QMainWindow):
         menuWidget.setLayout(menuLayout)
 
         ###--- Main Layout ---###
-
         vLine = QFrame()
         vLine.setFrameStyle(QFrame.VLine)
 
