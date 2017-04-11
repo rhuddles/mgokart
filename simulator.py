@@ -457,17 +457,30 @@ class CourseMaker(QWidget):
         self.setAutoFillBackground(True)
 
 
+
+
 class Simulator(QMainWindow):
+    '''
+    Simulator GUI. Contains menus for map creation, running simulations, and Hardware in the Loop (HITL) testing. 
+    '''
     def __init__(self):
         super(Simulator, self).__init__()
 
-        self.editFlag = False
+        # Array of map edit buttons
+        self.map_buttons = []
+
         self.sim_on = False
         self.lidar_frame = 0
         self.lidar_data = []
 
         self.course = CourseMaker()
         self.course.updated.connect(self.updateStatus)
+
+        # Text colors
+        self.red_palette = QPalette()    
+        self.red_palette.setColor(QPalette.Foreground,Qt.red)
+        self.green_palette = QPalette()    
+        self.green_palette.setColor(QPalette.Foreground,Qt.green)
 
         if os.path.exists('courses/lastCourse'):
             file = open('courses/lastCourse', 'r')
@@ -481,20 +494,20 @@ class Simulator(QMainWindow):
 
         self.initUI()
 
+    ###--- Event Handlers ---###
+
+    def editMap(self, checked):
+        '''
+        Enable or disable map editing
+        '''
+        self.course.enableEdits(checked)
+
     def updateStatus(self):
         self.steering_value.setText(str(self.course.steering))
         self.target_speed_value.setText(str(self.course.speed))
         self.lap_num_value.setText(str(self.course.lap_num))
 
-    def editMap(self):
-        if self.editFlag:
-            self.editFlag = False
-            self.edit_button.setText('Enable Map Editing')
-        else:
-            self.editFlag = True
-            self.edit_button.setText('Disable Map Editing')
 
-        self.course.enableEdits(self.editFlag)
 
     def runClear(self):
         self.course.clearMap()
@@ -535,17 +548,6 @@ class Simulator(QMainWindow):
         self.course.gui_points = self.loadPoints(file)
         self.course.center_points = self.loadPoints(file)
         file.close()
-        self.course.update()
-
-    def loadFrame(self):
-        self.course.enableEdits(True)
-        self.course.clearMap()
-        self.course.enableEdits(False)
-        cones = fd.get_cones(self.lidar_data[self.next_frame_button.value()], None, None)
-        for point in cones:
-            x_coord = int(float(point[0])/scaling_factor + self.course.lidar_pos[0])
-            y_coord = int(-float(point[1])/scaling_factor + self.course.lidar_pos[1])
-            self.course.gui_points.append((x_coord, y_coord))
         self.course.update()
 
     def loadLidarTestCourse(self):
@@ -646,61 +648,122 @@ class Simulator(QMainWindow):
             self.sim_on = True
 
     def setMarkCone(self):
-        self.mark_cone = True
-        self.course.setMarkCone(self.mark_cone)
+        '''
+        Map editor place cones
+        '''
+        self.course.setMarkCone(True)
 
     def setMarkCenter(self):
-        self.mark_cone = False
-        self.course.setMarkCone(self.mark_cone)
+        '''
+        Map editor place center marks
+        '''
+        self.course.setMarkCone(False)
 
+    def openConnection(self):
+        '''
+        Connect to gokart for HITL testing
+        '''
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect(('ip', 2000))
+        s.send('Hello')
+
+        # Update GUI
+        self.connect_status.setText('Connected')
+        self.connect_status.setPalette(self.green_palette)
+        self.connect_button.setText('Disconnect from kart')
 
     def initUI(self):
 
-        menu_label = QLabel("Simulator Operation Menu")
+        # Menu operations
+        menu_label = QLabel('Simulator Operation Menu')
 
-        ###--- Map related buttons ---###
+        # Create tabs
+        tab_widget = QTabWidget()
+        map_tab = QWidget()
+        sim_tab = QWidget()
+        hitl_tab = QWidget()
+        tab_widget.addTab(map_tab, 'Map Editing')
+        tab_widget.addTab(sim_tab, 'Simulation')
+        tab_widget.addTab(hitl_tab, 'HITL')
 
-        map_label = QLabel("Map Functions")
 
-        self.edit_button = QPushButton('Enable Map Editing')
+        ###--- Map Edit Tab ---###
+        edit_button = QCheckBox('Enable Map Editing')
+        center_radio = QRadioButton('Mark Center')
+        cone_radio = QRadioButton('Mark Cone')
+        cone_radio.setChecked(True)
+        
+        # Radio group
+        radio_group = QButtonGroup()
+        radio_group.addButton(cone_radio)
+        radio_group.addButton(center_radio)
+        
+        # Radio button layout
+        radio_layout = QHBoxLayout()
+        radio_layout.addWidget(cone_radio)
+        radio_layout.addWidget(center_radio)
 
-        self.click_for_cone_radio = QRadioButton('Mark Cone')
-        self.click_for_cone_radio.setChecked(True)
-        self.click_for_center_radio = QRadioButton('Mark Center')
-        self.radio_group = QButtonGroup()
-        self.radio_group.addButton(self.click_for_cone_radio)
-        self.radio_group.addButton(self.click_for_center_radio)
-
-        undo_button = QPushButton('Undo')
-        clear_button = QPushButton('Clear Map')
+        # Map edit buttons
         save_button = QPushButton('Save Map')
         load_button = QPushButton('Load Map')
         load_lidar_button = QPushButton('Load Lidar')
+        undo_button = QPushButton('Undo')
+        clear_button = QPushButton('Clear Map')
 
-        self.edit_button.clicked.connect(self.editMap)
-        self.click_for_cone_radio.clicked.connect(self.setMarkCone)
-        self.click_for_center_radio.clicked.connect(self.setMarkCenter)
+        # Set event handlers
+        edit_button.toggled.connect(self.editMap)
+        cone_radio.clicked.connect(self.setMarkCone)
+        center_radio.clicked.connect(self.setMarkCenter)
         undo_button.clicked.connect(self.course.undoPlaceCone)
         clear_button.clicked.connect(self.runClear)
         save_button.clicked.connect(self.save)
         load_button.clicked.connect(self.load)
         load_lidar_button.clicked.connect(self.loadLidarTestCourse)
 
-        ###--- Simulation related buttons ---###
-        sim_label= QLabel('Simulation')
+        # Populate tab
+        map_layout = QVBoxLayout(map_tab)
+        map_layout.setAlignment(Qt.AlignTop)
+        map_layout.addWidget(edit_button)
+        map_layout.addLayout(radio_layout)
+        map_layout.addWidget(undo_button)
+        map_layout.addWidget(clear_button)
+        map_layout.addWidget(save_button)
+        map_layout.addWidget(load_button)
+        map_layout.addWidget(load_lidar_button)
+        map_tab.setLayout(map_layout)
 
+        ###--- Simulation tab ---###
         self.step_button = QPushButton('Step Forward')
         self.run_button = QPushButton('Run Simulation')
-        next_scan = QLabel('Lidar Frame:')
-        self.next_frame_button = QSpinBox()
-        self.next_frame_button.setMaximum(10000)
-        self.next_frame_button.setSingleStep(10)
 
+        # Set event handlers
         self.step_button.clicked.connect(self.course.stepSim)
         self.run_button.clicked.connect(self.runSim)
-        self.next_frame_button.valueChanged.connect(self.loadFrame)
 
-        ###--- Status related buttons ---###
+        # Populate tab
+        sim_layout = QVBoxLayout(sim_tab)
+        sim_layout.setAlignment(Qt.AlignTop)
+        sim_layout.addWidget(self.step_button)
+        sim_layout.addWidget(self.run_button)
+        sim_tab.setLayout(sim_layout)
+
+        ###--- HITL tab ---###
+        self.connect_status = QLabel('Not Connected')
+        self.connect_status.setPalette(self.red_palette)
+        self.connect_button = QPushButton('Connect to kart')
+
+        # Set event handlers
+        self.connect_button.clicked.connect(self.openConnection)
+
+        # Populate tab
+        hitl_layout = QVBoxLayout(hitl_tab)
+        hitl_layout.setAlignment(Qt.AlignTop)
+        hitl_layout.addWidget(self.connect_status)
+        hitl_layout.addWidget(self.connect_button)
+        hitl_tab.setLayout(hitl_layout)
+
+
+        ###--- Status box---###
         status_label = QLabel('Status')
         steering_label = QLabel('Steering Angle (degrees):')
         self.steering_value = QLabel('0')
@@ -709,27 +772,15 @@ class Simulator(QMainWindow):
         lap_label = QLabel('Lap Number:')
         self.lap_num_value = QLabel('0')
 
-        ###--- Menu Layout ---###
 
+        ###--- Menu Layout ---###
         menuLayout = QVBoxLayout()
         menuLayout.setAlignment(Qt.AlignTop)
         menuLayout.addWidget(menu_label)
-        # Map
-        menuLayout.addWidget(map_label)
-        menuLayout.addWidget(self.edit_button)
-        menuLayout.addWidget(self.click_for_cone_radio)
-        menuLayout.addWidget(self.click_for_center_radio)
-        menuLayout.addWidget(undo_button)
-        menuLayout.addWidget(clear_button)
-        menuLayout.addWidget(save_button)
-        menuLayout.addWidget(load_button)
-        menuLayout.addWidget(load_lidar_button)
-        # Simulation
-        menuLayout.addWidget(sim_label)
-        menuLayout.addWidget(self.step_button)
-        menuLayout.addWidget(self.run_button)
-        menuLayout.addWidget(next_scan)
-        menuLayout.addWidget(self.next_frame_button)
+
+        # Tabs
+        menuLayout.addWidget(tab_widget)
+        
         # Status
         menuLayout.addWidget(status_label)
         menuLayout.addWidget(steering_label)
@@ -738,6 +789,7 @@ class Simulator(QMainWindow):
         menuLayout.addWidget(self.target_speed_value)
         menuLayout.addWidget(lap_label)
         menuLayout.addWidget(self.lap_num_value)
+        menuLayout.addStretch()
 
         menuWidget = QWidget()
         menuWidget.setLayout(menuLayout)
@@ -748,9 +800,9 @@ class Simulator(QMainWindow):
         vLine.setFrameStyle(QFrame.VLine)
 
         mainLayout = QHBoxLayout()
-        mainLayout.addWidget(self.course,3)
+        mainLayout.addWidget(self.course,10)
         mainLayout.addWidget(vLine)
-        mainLayout.addWidget(menuWidget)
+        mainLayout.addWidget(menuWidget,2)
 
         main_widget = QWidget(self)
         main_widget.setLayout(mainLayout)
