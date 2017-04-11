@@ -23,7 +23,8 @@ int main(void)
 {
 	char buf[1024] = {0};
 	int sock = 0, autonomous;
-	double speed = 0, bearing = 0;
+	double target_speed = 0, target_bearing = 0;
+	double real_speed = 0, real_bearing = 0;
 	float signal_out, volt_out;
 
 	signal(SIGINT, stop_running);
@@ -70,9 +71,9 @@ int main(void)
 		autonomous = mraa_gpio_read(manual_switch);
 		if (autonomous) {
 			// edits speed and bearing to be the targets
-			get_commands(sock, &speed, &bearing);
+			get_commands(sock, &target_speed, &target_bearing);
 
-			volt_out = (speed + 4.587) / 4.483;
+			volt_out = (target_speed + 4.587) / 4.483;
 			signal_out = volt_out / 5.0;
 		}
 		else {
@@ -80,7 +81,10 @@ int main(void)
 		}
 
 		write_speed(throttle_out, signal_out);
-		move_stepper(stepper, bearing);
+		move_stepper(stepper, target_bearing);
+
+		read_from_arduinos(i2c0, i2c1, &real_speed, &real_bearing);
+		send_update(sock, real_speed, real_bearing);
 	}
 
     // Close pins
