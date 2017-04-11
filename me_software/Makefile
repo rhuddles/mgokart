@@ -1,29 +1,32 @@
 .SUFFIXES:
 
-all: elecComms encoder dpdt throttle main i2c
+all: elecComms encoder dpdt throttle main i2c PID
 
-elecComms: elecComms.cpp
-	g++ elecComms.cpp --std=c++11 -lpthread -lmraa -o elecComms
+elecComms: elecComms.c elecComms.h
+	gcc -l mraa -c elecComms.c
 
 encoder: encoder_driving.c
 	gcc encoder_driving.c -l mraa -o encoder
 
 dpdt: dpdt.c dpdt.h
-	gcc -c dpdt.c -l mraa
+	gcc -l mraa -c dpdt.c
 
-throttle: dpdt throttle_control.c
-	gcc throttle_control.c dpdt.o -l mraa -o throttle
+throttle: throttle_control.c throttle_control.h
+	gcc -l mraa -c throttle_control.c
 
-i2c: i2c.c
-	gcc i2c.c -l mraa -o i2c
+i2c: i2c.c i2c.h
+	gcc -l mraa -c i2c.c
 
 stepper: Stepper-simple.c
 	gcc Stepper-simple.c -l phidget21 -o stepper
 
-main: main.c dpdt
-	gcc main.c dpdt.o -l mraa -o main
+PID: PID.c
+	gcc PID.c -o pid
+
+main: main.c dpdt elecComms throttle i2c
+	gcc main.c dpdt.o i2c.o throttle_control.o elecComms.o -l mraa -o main
 
 clean:
-	$(RM) elecComms encoder dpdt.o throttle i2c stepper main
+	$(RM) elecComms.o encoder dpdt.o throttle_control.o i2c.o stepper main
 
 .phony: all clean
