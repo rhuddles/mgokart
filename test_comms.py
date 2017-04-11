@@ -1,3 +1,5 @@
+import socket
+
 HOST = '35.2.135.78'
 PORT = 2000
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
