@@ -10,11 +10,11 @@
 #define WHEEL_CIRCUMFERENCE (2.0 * M_PI * WHEEL_RADIUS)
 #define COUNTS_PER_REV (20.0)
 
-const int encoderA = 3;
-const int encoderB = 2;
+const int encoderA = 1;
+const int encoderB = 0;
 
-const int interruptA = 1;
-const int interruptB = 0;
+const int interruptA = 3;
+const int interruptB = 2;
 
 volatile long encoder = 0;
 volatile long old_pos = 0;
