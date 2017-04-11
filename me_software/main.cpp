@@ -58,13 +58,35 @@ void get_setpts(int sock)
 	}
 }
 
-void actuate(int sock)
+void get_speed_bearing(int sock)
 {
-	char buf[1024] = {0};
-	int autonomous, i;
 	double real_speed = 0, real_bearing = 0;
+
+	fprintf(stderr, "Initializing I2C\n");
+	// Init I2C
+    mraa_i2c_context i2c0 = mraa_i2c_init(0); // Set as master
+    mraa_i2c_context i2c1 = mraa_i2c_init(0); // Set as master
+    mraa_i2c_address(i2c0, I2C_ADDRESS0);
+    mraa_i2c_address(i2c1, I2C_ADDRESS1);
+
+	while (running)
+	{
+		read_from_arduinos(i2c0, i2c1, &real_speed, &real_bearing);
+		fprintf(stderr, "Real Speed: %f\tReal Bearing: %f\n", real_speed, real_bearing);
+		send_update(sock, real_speed, real_bearing);
+		usleep(100000);
+	}
+
+	//Close pins
+    mraa_i2c_stop(i2c0);
+    mraa_i2c_stop(i2c1);
+}
+
+void actuate(void)
+{
+	int autonomous;
+	float signal_out, volt_out, target_bearing;
 	std::pair<double, double> target = {0, 0};
-	float signal_out, volt_out;
 
 	fprintf(stderr, "Initializing DPDT\n");
     // Init DPDT
@@ -85,13 +107,6 @@ void actuate(int sock)
 	mraa_pwm_period_us(throttle_out, 50);
 	mraa_pwm_enable(throttle_out, 1);
 
-	fprintf(stderr, "Initializing I2C\n");
-	// Init I2C
-    mraa_i2c_context i2c0 = mraa_i2c_init(0); // Set as master
-    mraa_i2c_context i2c1 = mraa_i2c_init(0); // Set as master
-    mraa_i2c_address(i2c0, I2C_ADDRESS0);
-    mraa_i2c_address(i2c1, I2C_ADDRESS1);
-
 	fprintf(stderr, "Initializing Stepper\n");
 	// Init Stepper Motor
 	CPhidgetStepperHandle stepper = setup_stepper();
@@ -106,24 +121,20 @@ void actuate(int sock)
 		autonomous = mraa_gpio_read(manual_switch);
 		if (autonomous) {
 			fprintf(stderr, "Autonomous Mode\n");
-
 			target = setpt.get();
+
+			volt_out = (target.first + 4.587) / 4.483;
+			signal_out = volt_out / REFERENCE_VOLTAGE;
+			target_bearing = target.second;
 		}
 		else {
 			fprintf(stderr, "Manual Mode\n");
 		    signal_out = read_analog_signal(throttle_in);
+			target_bearing = 0;
 		}
 
-		write_speed(throttle_out, target.first);
-		move_stepper(stepper, target.second);
-
-		for (i = 0; i < 100; i++)
-		{
-			read_from_arduinos(i2c0, i2c1, &real_speed, &real_bearing);
-			fprintf(stderr, "Real Speed: %f\tReal Bearing: %f\n", real_speed, real_bearing);
-			send_update(sock, real_speed, real_bearing);
-			usleep(100000);
-		}
+		write_speed(throttle_out, signal_out);
+		move_stepper(stepper, target_bearing);
 	}
 
     // Close pins
@@ -133,9 +144,6 @@ void actuate(int sock)
 
 	mraa_pwm_write(throttle_out, 0);
 	mraa_pwm_close(throttle_out);
-
-    mraa_i2c_stop(i2c0);
-    mraa_i2c_stop(i2c1);
 
 	close_stepper(stepper);
 }
@@ -157,7 +165,8 @@ int main(void)
 	fprintf(stderr, "Connected to socket\n");
 
 	std::thread t1(get_setpts, sock);
-	std::thread t2(actuate, sock);
+	std::thread t2(get_speed_bearing, sock);
+	std::thread t3(actuate);
 
 	t1.join();
 	t2.join();

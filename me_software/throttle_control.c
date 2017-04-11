@@ -8,13 +8,8 @@ const int MANUAL_SWITCH_PIN = 9;
 const double REFERENCE_VOLTAGE = 5.0;
 const int BATTERY_VOLTAGE = 5;
 
-void write_speed(mraa_pwm_context throttle_out, double speed)
+void write_speed(mraa_pwm_context throttle_out, float signal_out)
 {
-	float signal_out, volt_out;
-
-	volt_out = (speed + 4.587) / 4.483;
-	signal_out = volt_out / REFERENCE_VOLTAGE;
-
 	mraa_pwm_write(throttle_out, signal_out);
 }
 
