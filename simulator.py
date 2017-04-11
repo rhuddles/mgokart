@@ -90,6 +90,8 @@ class CourseMaker(QWidget):
         self.target_steering = 0
         self.target_speed = 0
 
+        self.file = open("log.txt", "w")
+
         # Vehicle params
         self.vehicle_angle = 0
         self.wheel_angle = 0
@@ -204,6 +206,7 @@ class CourseMaker(QWidget):
 
         try:
             self.target_speed = ps.get_next_speed(list(self.left_bound), list(self.right_bound), self.lap_num)
+            self.file.write("%f\n" % self.target_speed)
         except Exception, e:
             print('Error running lane keeping (speed)!')
             traceback.print_exc()

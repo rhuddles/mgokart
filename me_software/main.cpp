@@ -1,14 +1,40 @@
 #include "dpdt.h"
 #include "elecComms.h"
-#include "throttle_control.h"
 #include "i2c.h"
 #include "stepper.h"
+#include "throttle_control.h"
 
-#include <unistd.h>
+#include <mutex>
+#include <thread>
 
 #define DEFAULT_PORT 8090
 
+class Setpt_t
+{
+public:
+	Setpt_t() : speed(0), bearing(0)
+	{}
+
+	void set(double target_speed, double target_bearing)
+	{
+		std::lock_guard<std::mutex> l(m);
+		speed = target_speed;
+		bearing = target_bearing;
+	}
+
+	std::pair<double, double> get()
+	{
+		std::lock_guard<std::mutex> l(m);
+		return {speed, bearing};
+	}
+
+private:
+	std::mutex m;
+	double speed, bearing;
+};
+
 int running = 1;
+Setpt_t setpt;
 
 /**
  * For testing all the modules
@@ -19,17 +45,26 @@ void stop_running(int signal)
 	running = 0;
 }
 
-int main(void)
+void get_setpts(int sock)
+{
+	double target_speed = 0, target_bearing = 0;
+
+	while (running)
+	{
+		// edits speed and bearing to be the targets
+		get_commands(sock, &target_speed, &target_bearing);
+
+		setpt.set(target_speed, target_bearing);
+	}
+}
+
+void actuate(int sock)
 {
 	char buf[1024] = {0};
-	int sock = 0, autonomous, i;
-	double target_speed = 0, target_bearing = 0;
+	int autonomous, i;
 	double real_speed = 0, real_bearing = 0;
+	std::pair<double, double> target = {0, 0};
 	float signal_out, volt_out;
-
-	signal(SIGINT, stop_running);
-	signal(SIGABRT, stop_running);
-
 
 	fprintf(stderr, "Initializing DPDT\n");
     // Init DPDT
@@ -65,44 +100,30 @@ int main(void)
     // Set DPDT to reverse then forward
     mraa_gpio_write(dpdt_pin, DPDT_FORWARD);
 
-
-	fprintf(stderr, "Waiting for socket connection\n");
-	sock = open_socket(DEFAULT_PORT);
-	if (sock == -1)
-	{
-		fprintf(stderr, "Error: could not open socket\n");
-		return 1;
-	}
-	fprintf(stderr, "Connected to socket\n");
-
 	while (running)
 	{
 		// Check if manual or autonomous
 		autonomous = mraa_gpio_read(manual_switch);
 		if (autonomous) {
 			fprintf(stderr, "Autonomous Mode\n");
-			// edits speed and bearing to be the targets
-			get_commands(sock, &target_speed, &target_bearing);
 
-			volt_out = (target_speed + 4.587) / 4.483;
-			signal_out = volt_out / REFERENCE_VOLTAGE;
+			target = setpt.get();
 		}
 		else {
 			fprintf(stderr, "Manual Mode\n");
 		    signal_out = read_analog_signal(throttle_in);
 		}
 
-		write_speed(throttle_out, signal_out);
-		move_stepper(stepper, target_bearing);
-		
-		for (i = 0; i < 10; i++)
+		write_speed(throttle_out, target.first);
+		move_stepper(stepper, target.second);
+
+		for (i = 0; i < 100; i++)
 		{
 			read_from_arduinos(i2c0, i2c1, &real_speed, &real_bearing);
 			fprintf(stderr, "Real Speed: %f\tReal Bearing: %f\n", real_speed, real_bearing);
+			send_update(sock, real_speed, real_bearing);
 			usleep(100000);
 		}
-
-		send_update(sock, real_speed, real_bearing);
 	}
 
     // Close pins
@@ -117,6 +138,29 @@ int main(void)
     mraa_i2c_stop(i2c1);
 
 	close_stepper(stepper);
+}
+
+int main(void)
+{
+	int sock = 0;
+
+	signal(SIGINT, stop_running);
+	signal(SIGABRT, stop_running);
+
+	fprintf(stderr, "Waiting for socket connection\n");
+	sock = open_socket(DEFAULT_PORT);
+	if (sock == -1)
+	{
+		fprintf(stderr, "Error: could not open socket\n");
+		return 1;
+	}
+	fprintf(stderr, "Connected to socket\n");
+
+	std::thread t1(get_setpts, sock);
+	std::thread t2(actuate, sock);
+
+	t1.join();
+	t2.join();
 
     return 0;
 }
