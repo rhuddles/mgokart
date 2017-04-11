@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 import socket
 
+speed = 0
+angle = 0
+
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind(('35.2.135.78', 2000))
 s.listen(1)
@@ -16,4 +19,5 @@ while 1:
 		print 'Angle=' + str(angle)
 	elif mtype == 'C':
 		print data[1:]
+		conn.send(str(speed) + ',' + str(angle))
 conn.close()

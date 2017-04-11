@@ -462,8 +462,6 @@ class CourseMaker(QWidget):
         self.setAutoFillBackground(True)
 
 
-
-
 class Simulator(QMainWindow):
     '''
     Simulator GUI. Contains menus for map creation, running simulations, and Hardware in the Loop (HITL) testing. 
@@ -502,7 +500,6 @@ class Simulator(QMainWindow):
         self.initUI()
 
     ###--- Event Handlers ---###
-
     def editMap(self, checked):
         '''
         Enable or disable map editing
@@ -719,6 +716,15 @@ class Simulator(QMainWindow):
         cones = self.course.lidarScan()
         if self.sock != -1:
             self.sock.send('C' + str(cones))
+            data = self.sock.recv(1024)
+            if not data:
+                self.connect_status.setText('Disconnected')
+                self.connect_status.setPalette(self.red_palette)
+                self.connect_button.setText('Connect to kart')
+            speed = data.split(',')[0]
+            angle = data.split(',')[1]
+            print 'Speed=' + str(speed)
+            print 'Angle=' + str(angle)
 
     def initUI(self):
 
