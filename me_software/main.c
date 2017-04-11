@@ -22,7 +22,7 @@ void stop_running(int signal)
 int main(void)
 {
 	char buf[1024] = {0};
-	int sock = 0, autonomous;
+	int sock = 0, autonomous, i;
 	double target_speed = 0, target_bearing = 0;
 	double real_speed = 0, real_bearing = 0;
 	float signal_out, volt_out;
@@ -84,8 +84,6 @@ int main(void)
 			// edits speed and bearing to be the targets
 			get_commands(sock, &target_speed, &target_bearing);
 
-			printf("Speed: %f\tSteering:%f\n", target_speed, target_bearing);
-
 			volt_out = (target_speed + 4.587) / 4.483;
 			signal_out = volt_out / REFERENCE_VOLTAGE;
 		}
@@ -94,14 +92,16 @@ int main(void)
 		    signal_out = read_analog_signal(throttle_in);
 		}
 
-		printf("Duty Cycle: %f\n", signal_out);
 		write_speed(throttle_out, signal_out);
 		move_stepper(stepper, target_bearing);
+		
+		for (i = 0; i < 10; i++)
+		{
+			read_from_arduinos(i2c0, i2c1, &real_speed, &real_bearing);
+			fprintf(stderr, "Real Speed: %f\tReal Bearing: %f\n", real_speed, real_bearing);
+			usleep(100000);
+		}
 
-		sleep(1000);
-
-		read_from_arduinos(i2c0, i2c1, &real_speed, &real_bearing);
-		printf("Real Speed: %f\tReal Bearing: %f\n", real_speed, real_bearing);
 		send_update(sock, real_speed, real_bearing);
 	}
 
