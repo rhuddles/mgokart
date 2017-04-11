@@ -7,5 +7,8 @@ conn, addr = s.accept()
 while 1:
     data = conn.recv(1024)
     if not data: break
-    print data.split(',')
+    speed = data.split(',')[0]
+    angle = data.split(',')[1]
+    print 'Speed=' + str(speed)
+    print 'Angle=' + str(angle)
 conn.close()
