@@ -30,56 +30,71 @@ int main(void)
 	signal(SIGINT, stop_running);
 	signal(SIGABRT, stop_running);
 
+
+	fprintf(stderr, "Initializing DPDT\n");
     // Init DPDT
     mraa_gpio_context dpdt_pin = init_dpdt();
 
+	fprintf(stderr, "Initializing Manual Switch\n");
 	// Init GPIO
 	mraa_gpio_context manual_switch = mraa_gpio_init(MANUAL_SWITCH_PIN);
 	mraa_gpio_dir(manual_switch, MRAA_GPIO_IN);
 
+	fprintf(stderr, "Initializing Throttle In\n");
 	// Init Analog
 	mraa_aio_context throttle_in = mraa_aio_init(THROTTLE_SIGNAL_ANA);
 
+	fprintf(stderr, "Initializing Throttle Out\n");
 	// Init PWM
 	mraa_pwm_context throttle_out = mraa_pwm_init(THROTTLE_SIGNAL_PWM);
 	mraa_pwm_period_us(throttle_out, 50);
 	mraa_pwm_enable(throttle_out, 1);
 
+	fprintf(stderr, "Initializing I2C\n");
 	// Init I2C
     mraa_i2c_context i2c0 = mraa_i2c_init(0); // Set as master
     mraa_i2c_context i2c1 = mraa_i2c_init(0); // Set as master
     mraa_i2c_address(i2c0, I2C_ADDRESS0);
     mraa_i2c_address(i2c1, I2C_ADDRESS1);
 
+	fprintf(stderr, "Initializing Stepper\n");
 	// Init Stepper Motor
 	CPhidgetStepperHandle stepper = setup_stepper();
 
+	fprintf(stderr, "Writing 0 to DPDT\n");
     // Set DPDT to reverse then forward
     mraa_gpio_write(dpdt_pin, DPDT_FORWARD);
 
 
+	fprintf(stderr, "Waiting for socket connection\n");
 	sock = open_socket(DEFAULT_PORT);
 	if (sock == -1)
 	{
-		fprintf(stderr, "Error: could not open socket");
+		fprintf(stderr, "Error: could not open socket\n");
 		return 1;
 	}
+	fprintf(stderr, "Connected to socket\n");
 
 	while (running)
 	{
 		// Check if manual or autonomous
 		autonomous = mraa_gpio_read(manual_switch);
 		if (autonomous) {
+			fprintf(stderr, "Autonomous Mode\n");
 			// edits speed and bearing to be the targets
 			get_commands(sock, &target_speed, &target_bearing);
 
-			volt_out = (target_speed + 4.587) / 4.483;
+			printf("Speed: %f\tSteering:%f\n",speed, bearing);
+
+			volt_out = (speed + 4.587) / 4.483;
 			signal_out = volt_out / 5.0;
 		}
 		else {
+			fprintf(stderr, "Manual Mode\n");
 		    signal_out = read_analog_signal(throttle_in);
 		}
 
+		printf("Duty Cycle: %f\n", signal_out);
 		write_speed(throttle_out, signal_out);
 		move_stepper(stepper, target_bearing);
 
