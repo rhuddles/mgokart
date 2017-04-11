@@ -13,6 +13,9 @@ try:
 except:
     pass
 
+MIN_RANGE =   500 #  0.5m
+MAX_RANGE = 10000 # 10.0m
+
 def average(cones):
 	x_total, y_total = separate_xy(cones)
 	size = len(cones)
@@ -49,7 +52,7 @@ def filter_data(data, left_coefs, right_coefs):
         # These numbers are super arbitrary right now
         # 500 mm for minimum distance from LIDAR spec
         # 10000 mm for 10 m cause why not
-        if (dist < 10000 and dist > 500):
+        if (dist < MAX_RANGE and dist > MIN_RANGE):
             pass_one.append(pt)
 
     if len(left_coefs) >= 3 and len(right_coefs) >= 3:

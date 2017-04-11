@@ -5,7 +5,7 @@ const int THROTTLE_SIGNAL_PWM = 5;
 
 const int MANUAL_SWITCH_PIN = 9;
 
-const int REFERENCE_VOLTAGE = 5;
+const double REFERENCE_VOLTAGE = 5.0;
 const int BATTERY_VOLTAGE = 5;
 
 void write_speed(mraa_pwm_context throttle_out, float signal_out)

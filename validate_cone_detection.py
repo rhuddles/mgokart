@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 from boundary_mapping import create_boundary_lines
-from filter_data import get_cones, parse_csv_data
+from filter_data import get_cones, parse_csv_data, MIN_RANGE, MAX_RANGE
 from finish_line import detect_finish_line
+from regression_steering import plot_line
 from kalman import predict, update
-from utility import dist, regression, separate_xy
+from utility import *
 
 try:
     from matplotlib import pyplot as plt
@@ -24,7 +25,7 @@ def update_boundaries(frame):
     # Filter Data
     cones = get_cones(frame, LEFT_POLYS, RIGHT_POLYS)
 
-    #plot_frame(frame, cones)
+    plot_frame(frame, cones)
 
     # Predict Boundaries
     predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
@@ -41,6 +42,12 @@ def update_boundaries(frame):
             LEFT_BOUNDARY, RIGHT_BOUNDARY)
     set_boundaries(left_boundary, right_boundary)
 
+    left_xs, left_ys = separate_xy(LEFT_BOUNDARY)
+    plot_line(LEFT_COEFS, min(left_ys), max(left_ys))
+    right_xs, right_ys = separate_xy(RIGHT_BOUNDARY)
+    plot_line(RIGHT_COEFS, min(right_ys), max(right_ys))
+    #plt.show()
+
 def set_boundaries(left_boundary, right_boundary):
     global LEFT_BOUNDARY, LEFT_COEFS, RIGHT_BOUNDARY, RIGHT_COEFS
     LEFT_BOUNDARY = list(left_boundary)
@@ -50,11 +57,11 @@ def set_boundaries(left_boundary, right_boundary):
 
 def plot_frame(frame, cones):
     # Plot raw data
-    xs, ys = separate_xy(frame)
+    xs, ys = separate_and_flip(frame)
     red = plt.scatter(xs, ys, marker='x', color='red')
 
     # Plot grouped cones
-    xs, ys = separate_xy(cones)
+    xs, ys = separate_and_flip(cones)
     blue = plt.scatter(xs, ys, marker='^', color='blue')
 
     green = plt.scatter(0, 0, color='green')
@@ -72,17 +79,20 @@ def plot_frame(frame, cones):
     )
 
     plt.title('Distance and Clustering Filtering')
-    plt.show()
 
-def create_annotate_filename(filename, number):
-    base, _ = filename.split('.')
-    return '{}_{}'.format(base, str(number))
+def in_range(cone):
+    d = dist((0, 0), cone)
+    return d > MIN_RANGE and d < MAX_RANGE
 
 def read_annotate_file(filename):
+    print 'Reading file: {}'.format(filename)
     real_cones = []
     for line in open(filename):
         cone_x, cone_y = line.strip().split(' ')
-        real_cones.append((float(cone_x), float(cone_y)))
+        cone = (float(cone_x), float(cone_y))
+        if in_range(cone):
+            real_cones.append(cone)
+
     return real_cones
 
 def check_close(cone, real_cones):
@@ -98,8 +108,11 @@ def validate_scan(frame, annotate_file):
     found_cones = get_cones(frame, LEFT_POLYS, RIGHT_POLYS)
     real_cones = read_annotate_file(annotate_file)
 
-    print 'Found cones [{}]: {}'.format(len(found_cones), found_cones)
-    print 'Real cones [{}]: {}'.format(len(real_cones), real_cones)
+    cone_xs, cone_ys = separate_and_flip(real_cones)
+    plt.scatter(cone_xs, cone_ys, color='b', marker='^')
+
+    print 'Found cones [{}]: {}'.format(len(found_cones), sorted(found_cones))
+    print 'Real cones [{}]: {}'.format(len(real_cones), sorted(real_cones))
     print
     
     correct = 0
@@ -107,6 +120,8 @@ def validate_scan(frame, annotate_file):
 
     for cone in found_cones:
         if check_close(cone, real_cones):
+            cone_x, cone_y = separate_and_flip([cone])
+            plt.scatter(cone_x, cone_y, color='k', marker='^')
             correct += 1
 
     print
@@ -116,6 +131,8 @@ def validate_scan(frame, annotate_file):
     print 'Percent: {}%'.format(int(float(correct) / float(total) * 100))
     print
 
+    plt.show()
+
 if __name__ == '__main__':
     filename = 'lidar_data/5_so_fast.csv'
     data = parse_csv_data(filename, fov=200)
@@ -124,10 +141,10 @@ if __name__ == '__main__':
     update_boundaries(data[0])
 
     # Starting with second frame
-    for i in range(1, len(data)):
+    for i in range(150, len(data)):
         validate_scan(data[i], create_annotate_filename(filename, i))
+
+        break # FIXME
 
         # Refresh boundaries and coefficients
         update_boundaries(data[i])
-
-        break # FIXME

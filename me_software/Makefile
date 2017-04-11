@@ -27,6 +27,6 @@ main: main.c dpdt elecComms throttle i2c stepper
 	gcc main.c dpdt.o i2c.o throttle_control.o elecComms.o stepper.o -l mraa -l phidget21 -o main
 
 clean:
-	$(RM) encoder *.o main
+	$(RM) encoder *.o pid main
 
 .phony: all clean

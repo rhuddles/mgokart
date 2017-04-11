@@ -87,7 +87,7 @@ int main(void)
 			printf("Speed: %f\tSteering:%f\n", target_speed, target_bearing);
 
 			volt_out = (target_speed + 4.587) / 4.483;
-			signal_out = volt_out / 5.0;
+			signal_out = volt_out / REFERENCE_VOLTAGE;
 		}
 		else {
 			fprintf(stderr, "Manual Mode\n");
