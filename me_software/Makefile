@@ -1,6 +1,6 @@
 .SUFFIXES:
 
-all: elecComms encoder dpdt throttle main i2c PID
+all: main PID
 
 elecComms: elecComms.c elecComms.h
 	gcc -l mraa -c elecComms.c
@@ -17,16 +17,16 @@ throttle: throttle_control.c throttle_control.h
 i2c: i2c.c i2c.h
 	gcc -l mraa -c i2c.c
 
-stepper: Stepper-simple.c
-	gcc Stepper-simple.c -l phidget21 -o stepper
+stepper: stepper.c stepper.h
+	gcc -l phidget21 -c stepper.c
 
 PID: PID.c
 	gcc PID.c -o pid
 
-main: main.c dpdt elecComms throttle i2c
-	gcc main.c dpdt.o i2c.o throttle_control.o elecComms.o -l mraa -o main
+main: main.c dpdt elecComms throttle i2c stepper
+	gcc main.c dpdt.o i2c.o throttle_control.o elecComms.o stepper.o -l mraa -l phidget21 -o main
 
 clean:
-	$(RM) elecComms.o encoder dpdt.o throttle_control.o i2c.o stepper main
+	$(RM) encoder *.o main
 
 .phony: all clean

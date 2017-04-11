@@ -2,6 +2,7 @@
 #include "elecComms.h"
 #include "throttle_control.h"
 #include "i2c.h"
+#include "stepper.h"
 
 #include <unistd.h>
 
@@ -49,8 +50,12 @@ int main(void)
     mraa_i2c_address(i2c0, I2C_ADDRESS0);
     mraa_i2c_address(i2c1, I2C_ADDRESS1);
 
+	// Init Stepper Motor
+	CPhidgetStepperHandle stepper = setup_stepper();
+
     // Set DPDT to reverse then forward
     mraa_gpio_write(dpdt_pin, DPDT_FORWARD);
+
 
 	sock = open_socket(DEFAULT_PORT);
 	if (sock == -1)
@@ -75,6 +80,7 @@ int main(void)
 		}
 
 		write_speed(throttle_out, signal_out);
+		move_stepper(stepper, bearing);
 	}
 
     // Close pins
@@ -87,6 +93,8 @@ int main(void)
 
     mraa_i2c_stop(i2c0);
     mraa_i2c_stop(i2c1);
+
+	close_stepper(stepper);
 
     return 0;
 }
