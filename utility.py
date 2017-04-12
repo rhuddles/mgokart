@@ -2,6 +2,7 @@
 
 import math
 import numpy as np
+import os
 import warnings
 
 # Ignore RankWarnings from regression
@@ -33,3 +34,10 @@ def angle_between(u, v):
 def regression(boundary, degree=2):
     xs, ys = separate_and_flip(boundary)
     return np.polyfit(xs, ys, degree)
+
+# For Validation
+def create_annotate_filename(filename, number):
+    basename = os.path.basename(filename)
+    base, _ = basename.split('.')
+    save_file = '{}_{}'.format(base, str(number))
+    return os.path.join('lidar_data', 'annotated', save_file)

@@ -1,18 +1,13 @@
-#include <Wire.h>
+const int encoderA = 3;
+const int encoderB = 2;
 
-#define I2C_BUS_ADDRESS 3
-#define MESSAGE_LEN 10
+const int interruptA = 1;
+const int interruptB = 0;
 
-const int encoderA = 1;
-const int encoderB = 0;
+volatile int encoder = 0;
 
-const int interruptA = 3;
-const int interruptB = 2;
-
-volatile long encoder = 0;
-double angle = 0;
 const int MSG_LEN = 6;
-
+  
 void isrA() {
   int channelA = digitalRead(encoderA);
   int channelB = digitalRead(encoderB);
@@ -29,7 +24,7 @@ void isrA() {
 void isrB() {
   int channelA = digitalRead(encoderA);
   int channelB = digitalRead(encoderB);
-
+  
   if (channelA == channelB) { // encoder values are the same->positive rotation
     encoder++;
   }
@@ -40,21 +35,11 @@ void isrB() {
 }
 
 double countToDegrees(int count) {
-  const double STEP_ANGLE = (.035*16/2.2); // From datasheet
-  return ((double)count * STEP_ANGLE) / (50.894897 * 2.916666666666666666666666667);
-}
-
-void dataRequested() {
-  String message = String(angle);
-  char cstr[MESSAGE_LEN] = {0};
-  message.toCharArray(cstr, MESSAGE_LEN);
-  Wire.write((uint8_t*)cstr, MESSAGE_LEN);
+  const double STEP_ANGLE = .035; // From datasheet
+  return ((double)count * STEP_ANGLE) / (51.0 * 3.0);
 }
 
 void setup() {
-  Wire.begin(I2C_BUS_ADDRESS);
-  Wire.onRequest(dataRequested);
-
   Serial.begin(115200);
 
   attachInterrupt(interruptA, isrA, CHANGE);
@@ -62,9 +47,11 @@ void setup() {
 }
 
 void loop() {
-  // lol
-  angle=countToDegrees(encoder);
-  Serial.println(angle);
-  delay(200);
+  char toSend[MSG_LEN] = {0};
+  String encoderStr(encoder);
+  encoderStr.toCharArray(toSend, MSG_LEN);
+  Serial.write((uint8_t*)toSend, MSG_LEN);
+
+  delay(20); // 20 milliseconds
 }
 

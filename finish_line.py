@@ -2,8 +2,7 @@
 
 from parse_data import parse_csv_data
 from filter_data import get_cones
-from boundary_mapping import angle_between
-from utility import dist, separate_xy
+from utility import dist, separate_xy, angle_between
 from functools import partial
 
 import itertools
