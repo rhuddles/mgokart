@@ -4,7 +4,7 @@ import socket
 
 def init_connection(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(('localhost', port))
+    sock.bind(('0.0.0.0', port))
     sock.listen(1)
     conn, addr = sock.accept()
     return conn

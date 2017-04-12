@@ -44,16 +44,16 @@ def set_boundaries(left_boundary, right_boundary):
     RIGHT_BOUNDARY = list(right_boundary)
     RIGHT_COEFS = regression(right_boundary)
 
-
-def predict_and_filter(data, curr_speed, curr_bearing):
+def predict_boundaries(curr_speed, curr_bearing):
     predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
             curr_speed, curr_bearing)
 
     if predicted_left and predicted_right:
         set_boundaries(predicted_left, predicted_right)
 
+def predict_and_filter(frame, curr_speed, curr_bearing):
+    predict_boundaries(curr_speed, curr_bearing)
     return get_cones(frame, LEFT_COEFS, RIGHT_COEFS)
-
 
 def get_speed_steering(cones):
     global LAP_COUNT
