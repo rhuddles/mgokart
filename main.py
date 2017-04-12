@@ -5,7 +5,7 @@ from filter_data import get_cones
 from finish_line import detect_finish_line
 from boundary_mapping import create_boundary_lines, plot_boundaries
 from kalman import predict, update
-from me_comms import *
+from me_comms import init_connection
 from parse_data import parse_csv_data
 from predictive_speed import get_next_speed
 from regression_steering import boundaries_to_steering
@@ -80,7 +80,7 @@ def get_and_send_setpoint(frame, curr_speed, curr_bearing, conn, verbose=False):
         print 'Bearing:\t%05.1f' % bearing
 
     if conn:
-        send(conn, '%05.1f,%05.1f' % (speed, bearing))
+        conn.sendall('%05.1f,%05.1f' % (speed, bearing))
 
 if __name__ == '__main__':
 

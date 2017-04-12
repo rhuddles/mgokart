@@ -69,16 +69,18 @@ if __name__ == '__main__':
 
         elif mtype == 'E':
             motor_disable = False
+        else:
+            print 'Unknown message type'
 
         if motor_disable:
             speed = 0
 
         # Send to ME's every time
-        me_comms.send(me_conn, '%05.1f,%05.1f' % (speed, bearing))
+        me_conn.sendall('%05.1f,%05.1f' % (speed, bearing))
 
         with state_lock:
             curr_speed, curr_bearing = CURR_SPEED, CURR_BEARING
-        me_comms.send(sim_conn, str(curr_speed) + ',' + str(curr_bearing) + ',')
+        sim_conn.sendall(str(curr_speed) + ',' + str(curr_bearing) + ',')
 
     me_conn.close()
     sim_conn.close()

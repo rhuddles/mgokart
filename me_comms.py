@@ -25,11 +25,3 @@ def receive(conn, size, verbose=False):
         print 'Bearing:', bearing
 
     return float(speed), float(bearing)
-
-def send(conn, msg):
-    # Checking to make sure right number of bytes sent
-    sent = 0
-    print msg
-    while sent < len(msg):
-        sent += conn.send(msg[sent:])
-
