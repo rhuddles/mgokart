@@ -876,7 +876,7 @@ class Simulator(QMainWindow):
                 curr_time = time.time()
                 diff_time = curr_time - last_time
                 last_time = curr_time
-                speed = 3 #float(data.split(',')[0])
+                speed = float(data.split(',')[0])
                 angle = float(data.split(',')[1])
                 self.steering_value.setText(str(angle))
                 self.target_speed_value.setText(str(speed))

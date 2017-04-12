@@ -59,6 +59,8 @@ if __name__ == '__main__':
             main.predict_boundaries(curr_speed, curr_bearing)
             cones = ast.literal_eval(data[1:])
             speed, bearing = main.get_speed_steering(cones)
+            print 'Calc Speed: ' + str(speed)
+            print 'Calc Bearing: ' + str(bearing)
 
         # Send to ME's every time
         me_comms.send(me_conn, '%05.1f,%05.1f' % (speed, bearing))
