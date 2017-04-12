@@ -10,7 +10,7 @@ const int interruptA = 3;
 const int interruptB = 2;
 
 volatile long encoder = 0;
-
+double angle = 0;
 const int MSG_LEN = 6;
 
 void isrA() {
@@ -40,12 +40,12 @@ void isrB() {
 }
 
 double countToDegrees(int count) {
-  const double STEP_ANGLE = .035; // From datasheet
-  return ((double)count * STEP_ANGLE) / (51.0 * 3.0);
+  const double STEP_ANGLE = (.035*16/2.2); // From datasheet
+  return ((double)count * STEP_ANGLE) / (50.894897 * 2.916666666666666666666666667);
 }
 
 void dataRequested() {
-  String message = String(encoder);
+  String message = String(angle);
   char cstr[MESSAGE_LEN] = {0};
   message.toCharArray(cstr, MESSAGE_LEN);
   Wire.write((uint8_t*)cstr, MESSAGE_LEN);
@@ -63,5 +63,8 @@ void setup() {
 
 void loop() {
   // lol
+  angle=countToDegrees(encoder);
+  Serial.println(angle);
+  delay(200);
 }
 
