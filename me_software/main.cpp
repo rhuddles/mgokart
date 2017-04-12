@@ -76,7 +76,7 @@ void get_speed_bearing(int sock)
 		//usleep(1000000);
 		read_from_arduino(i2c1, &real_bearing);
 		fprintf(stderr, "Real Speed: %f\tReal Bearing: %f\n", real_speed, real_bearing);
-		//send_update(sock, real_speed, real_bearing);
+		send_update(sock, real_speed, real_bearing);
 		usleep(100000);
 	}
 
