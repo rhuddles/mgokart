@@ -55,6 +55,7 @@ def predict_and_filter(data, curr_speed, curr_bearing):
 
 
 def get_speed_steering(cones):
+    global LAP_COUNT
     if detect_finish_line(cones):
         LAP_COUNT += 1
 

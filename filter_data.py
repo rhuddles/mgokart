@@ -23,43 +23,50 @@ def average(cones):
 	return (sum(x_total) / size, sum(y_total) / size)
 
 def filter_with_coefs(data, coefs):
-        filtered = []
-        flipped = separate_and_flip(data)
+    valid = []
+    invalid = []
+    flipped = separate_and_flip(data)
 
-        for x, y in zip(flipped[0], flipped[1]):
-            dist_coefs = [2*coefs[0]**2,
-                    3*coefs[1]*coefs[0],
-                    coefs[1]**2 + 2*coefs[2]*coefs[0] - 2*coefs[0]*y + 1,
-                    coefs[2]*coefs[1] - coefs[1]*y - x]
-            x_min_distance = numpy.roots(dist_coefs)
-            f = numpy.poly1d(coefs)
+    for x, y in zip(flipped[0], flipped[1]):
+        dist_coefs = [2*coefs[0]**2,
+                3*coefs[1]*coefs[0],
+                coefs[1]**2 + 2*coefs[2]*coefs[0] - 2*coefs[0]*y + 1,
+                coefs[2]*coefs[1] - coefs[1]*y - x]
+        x_min_distance = numpy.roots(dist_coefs)
+        f = numpy.poly1d(coefs)
 
-            for u in x_min_distance:
-                if numpy.isreal(u):
-                    if math.sqrt((u - x)**2 + (f(u) - y)**2) < 1000:
-                        filtered.append([-y, x])
-                        break
-        return filtered
+        is_valid = False
+        for u in x_min_distance:
+            if numpy.isreal(u):
+                if math.sqrt((u - x)**2 + (f(u) - y)**2) < 1000:
+                    is_valid = True
+                    break
+
+        if is_valid:
+            valid.append([-y, x])
+        else:
+            invalid.append([-y, x])
+
+    return valid, invalid
 
 
 def filter_data(data, left_coefs, right_coefs):
-    pass_one = []
+    might_be_valid = []
     filtered = []
 
     for pt in data:
         dist = math.sqrt(pt[0]**2 + pt[1]**2)
 
-        # These numbers are super arbitrary right now
-        # 500 mm for minimum distance from LIDAR spec
-        # 10000 mm for 10 m cause why not
         if (dist < MAX_RANGE and dist > MIN_RANGE):
-            pass_one.append(pt)
+            might_be_valid.append(pt)
 
     if len(left_coefs) >= 3 and len(right_coefs) >= 3:
-        filtered += filter_with_coefs(pass_one, right_coefs)
-        filtered += filter_with_coefs(pass_one, left_coefs)
+        valid, might_be_valid = filter_with_coefs(might_be_valid, right_coefs)
+        filtered += valid
+        valid, might_be_valid = filter_with_coefs(might_be_valid, left_coefs)
+        filtered += valid
     else:
-        filtered = pass_one
+        filtered = might_be_valid
 
     return filtered
 
