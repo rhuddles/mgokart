@@ -99,8 +99,10 @@ class CourseMaker(QWidget):
         self.steering = 0
         self.speed = 0
 
+        # QApplication.desktop().resized.connect(self.resChange)
+
          # Get lidar position
-        res = QApplication.desktop().screenGeometry();
+        res = QApplication.desktop().availableGeometry(1);
         scaling_factor = 64000.0/res.width()
 
         self.lidar_pos = ((res.width()- 370)/2,res.height()*3.0/5)
@@ -108,6 +110,14 @@ class CourseMaker(QWidget):
 
     updated = pyqtSignal()
 
+
+    # def resChange(self):
+    #     print 'hre'
+    #     # Get lidar position
+    #     res = QApplication.desktop().availableGeometry();
+    #     scaling_factor = 64000.0/res.width()
+
+    #     self.lidar_pos = ((res.width()- 370)/2,res.height()*3.0/5)
 
     ###--- Algorithmic Methods ---###
 
@@ -672,7 +682,7 @@ class Simulator(QMainWindow):
             try:
                 # Connect
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.sock.connect(('35.2.135.78', 2000))
+                self.sock.connect(('35.2.191.28', 2000))
 
                 # Update GUI
                 self.connect_status.setText('Connected')
@@ -733,6 +743,7 @@ class Simulator(QMainWindow):
                 cones = self.course.lidarScan()
                 self.sock.send('C' + str(cones))
                 data = self.sock.recv(1024)
+                print data
                 if not data:
                     self.connect_status.setText('Disconnected')
                     self.connect_status.setPalette(self.red_palette)
