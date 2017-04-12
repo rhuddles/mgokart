@@ -685,6 +685,7 @@ class Simulator(QMainWindow):
                 self.connect_button.setText('Connect to kart')
                 self.sock = -1
         else:
+            self.hitl_running = False
             # Disconnect
             self.resetKart()
             self.sock.close()

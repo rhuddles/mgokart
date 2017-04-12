@@ -53,9 +53,9 @@ if __name__ == '__main__':
 	s.listen(1)
 	sim, addr = s.accept()
 	curr_speed, curr_bearing = 0, 0
-        speed = 0
-        bearing = 0
-        while True:
+    speed = 0
+    bearing = 0
+    while True:
 
 		data = sim.recv(1024)
 		if not data: break
@@ -81,7 +81,6 @@ if __name__ == '__main__':
 
 			# Get cones
 			cones = ast.literal_eval(data[1:])
-                        print cones
 			# Finish line detection
 			if detect_finish_line(cones):
 			    LAP_COUNT += 1
@@ -103,6 +102,7 @@ if __name__ == '__main__':
 			# Write to socket
 			print 'Speed:\t%05.1f' % speed
 			print 'Bearing:\t%05.1f' % bearing
+
 		send(connection, '%05.1f,%05.1f' % (speed, bearing))
         speed, bearing = receive(connection,15)
         print bearing 
