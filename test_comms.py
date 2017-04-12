@@ -4,6 +4,7 @@ import main
 import me_comms
 
 import threading
+import ast
 
 ME_PORT = 8090
 SIM_PORT = 2000
@@ -19,7 +20,7 @@ def vehicle_update_listener(conn):
         speed, steering = me_comms.receive(conn, ME_MSG_LEN)
         with state_lock:
 	    CURR_SPEED, CURR_BEARING = speed, steering
-        print speed, bearing
+        print speed, steering
 
 if __name__ == '__main__':
 
