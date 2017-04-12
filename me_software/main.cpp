@@ -7,6 +7,11 @@
 #include <mutex>
 #include <thread>
 
+#include <chrono>
+#include <iostream>
+
+using namespace std;
+
 #define DEFAULT_PORT 8090
 
 class Setpt_t
@@ -17,28 +22,24 @@ public:
 
 	void set(double target_speed, double target_bearing)
 	{
-		std::lock_guard<std::mutex> l(m);
+		lock_guard<mutex> l(m);
 		speed = target_speed;
 		bearing = target_bearing;
 	}
 
-	std::pair<double, double> get()
+	pair<double, double> get()
 	{
-		std::lock_guard<std::mutex> l(m);
+		lock_guard<mutex> l(m);
 		return {speed, bearing};
 	}
 
 private:
-	std::mutex m;
+	mutex m;
 	double speed, bearing;
 };
 
 int running = 1;
 Setpt_t setpt;
-
-/**
- * For testing all the modules
- */
 
 void stop_running(int signal)
 {
@@ -47,14 +48,20 @@ void stop_running(int signal)
 
 void get_setpts(int sock)
 {
-	double target_speed = 0, target_bearing = 0;
+    double target_speed = 0, target_bearing = 0;
 
-	while (running)
-	{
-		// edits speed and bearing to be the targets
-		get_commands(sock, &target_speed, &target_bearing);
-		setpt.set(target_speed, target_bearing);
-	}
+    while (running)
+    {
+        auto start = chrono::high_resolution_clock::now();
+
+        // Modifies speed and bearing to be the targets
+        get_commands(sock, &target_speed, &target_bearing);
+        setpt.set(target_speed, target_bearing);
+
+        auto end = chrono::high_resolution_clock::now();
+        auto period = chrono::duration_cast<chrono::milliseconds>(end - start);
+        cerr << "Period: " << period.count() << "ms" << endl;
+    }
 }
 
 void get_speed_bearing(int sock)
@@ -86,7 +93,7 @@ void actuate(void)
 {
 	int autonomous;
 	float signal_out, volt_out, target_bearing;
-	std::pair<double, double> target = {0, 0};
+	pair<double, double> target = {0, 0};
 
 	fprintf(stderr, "Initializing DPDT\n");
     // Init DPDT
@@ -162,9 +169,9 @@ int main(void)
 	}
 	fprintf(stderr, "Connected to socket\n");
 
-	std::thread t1(get_setpts, sock);
-	std::thread t2(get_speed_bearing, sock);
-	std::thread t3(actuate);
+	thread t1(get_setpts, sock);
+	thread t2(get_speed_bearing, sock);
+	thread t3(actuate);
 
 	t1.join();
 	t2.join();

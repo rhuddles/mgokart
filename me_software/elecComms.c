@@ -12,7 +12,7 @@ void get_commands(int sock, double* speed, double* bearing)
 
 	*speed = atof(speed_tmp);
 	*bearing = atof(bearing_tmp);
-	printf("Recv: %+07.1f,%+07.1f", *speed, *bearing);
+	printf("Recv: %+07.1f,%+07.1f\n", *speed, *bearing);
 }
 
 void send_update(int sock, double speed, double bearing)
