@@ -162,12 +162,7 @@ class CourseMaker(QWidget):
         for point in self.detected_cones:
             cones_list.append(point[0])
 
-        finish_line, count_lap  = fl.detect_finish_line(cones_list)
-        if len(finish_line) == 2:
-            self.finish_cones = finish_line[0] + finish_line[1]
-        elif len(finish_line) == 1:
-            self.finish_cones = finish_line[0]
-
+        count_lap  = fl.detect_finish_line(cones_list)
         self.lap_num = self.lap_num + int(count_lap)
 
         # Run boundary mapping algorithms
@@ -797,7 +792,7 @@ class Simulator(QMainWindow):
             try:
                 # Connect
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.sock.connect(('35.2.135.78', 2000))
+                self.sock.connect(('35.2.200.236', 2000))
 
                 # Update GUI
                 self.connect_status.setText('Connected')
