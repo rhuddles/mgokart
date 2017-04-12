@@ -162,12 +162,7 @@ class CourseMaker(QWidget):
         for point in self.detected_cones:
             cones_list.append(point[0])
 
-        finish_line, count_lap  = fl.detect_finish_line(cones_list)
-        if len(finish_line) == 2:
-            self.finish_cones = finish_line[0] + finish_line[1]
-        elif len(finish_line) == 1:
-            self.finish_cones = finish_line[0]
-
+        count_lap  = fl.detect_finish_line(cones_list)
         self.lap_num = self.lap_num + int(count_lap)
 
         # Run boundary mapping algorithms
@@ -290,7 +285,11 @@ class CourseMaker(QWidget):
         # how many points to interpolate between cones
         PTS_TO_INTERPOLATE = 20
 
-        m = (p2[1] - p1[1]) / (p2[0] - p1[0])
+        if p2[0] == p1[0]:
+            den = 0.0000001 # lol
+        else:
+            den = p2[0] - p1[0]
+        m = (p2[1] - p1[1]) / den
         b = p1[1] - (m * p1[0])
         line = np.poly1d([m, b])
 
@@ -797,7 +796,7 @@ class Simulator(QMainWindow):
             try:
                 # Connect
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.sock.connect(('35.2.135.78', 2000))
+                self.sock.connect(('35.2.200.236', 2000))
 
                 # Update GUI
                 self.connect_status.setText('Connected')
