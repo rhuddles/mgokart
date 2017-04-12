@@ -290,7 +290,11 @@ class CourseMaker(QWidget):
         # how many points to interpolate between cones
         PTS_TO_INTERPOLATE = 20
 
-        m = (p2[1] - p1[1]) / (p2[0] - p1[0])
+        if p2[0] == p1[0]:
+            den = 0.0000001 # lol
+        else:
+            den = p2[0] - p1[0]
+        m = (p2[1] - p1[1]) / den
         b = p1[1] - (m * p1[0])
         line = np.poly1d([m, b])
 
