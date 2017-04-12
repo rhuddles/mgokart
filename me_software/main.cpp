@@ -9,10 +9,15 @@
 
 #include <chrono>
 #include <iostream>
+#include <cmath>
 
 using namespace std;
 
 #define DEFAULT_PORT 8090
+
+// Not thread safe... 'Should be fine' - Cooper
+double goal_bearing = 100; // Outside of go kart bearing range
+chrono::high_resolution_clock::time_point setpt_recved;
 
 class Setpt_t
 {
@@ -53,10 +58,14 @@ void get_setpts(int sock)
     while (running)
     {
         auto start = chrono::high_resolution_clock::now();
+	setpt_recved = start;
 
         // Modifies speed and bearing to be the targets
         get_commands(sock, &target_speed, &target_bearing);
         setpt.set(target_speed, target_bearing);
+
+	goal_bearing = target_bearing;
+	cerr << "Setting goal_bearing: " << goal_bearing << endl;
 
         auto end = chrono::high_resolution_clock::now();
         auto period = chrono::duration_cast<chrono::milliseconds>(end - start);
@@ -70,22 +79,33 @@ void get_speed_bearing(int sock)
 
 	fprintf(stderr, "Initializing I2C\n");
 	// Init I2C
-    mraa_i2c_context i2c0 = mraa_i2c_init(0); // Set as master
-    mraa_i2c_context i2c1 = mraa_i2c_init(0); // Set as master
-    mraa_i2c_address(i2c0, I2C_ADDRESS0);
-    mraa_i2c_address(i2c1, I2C_ADDRESS1);
+    //mraa_i2c_context i2c0 = mraa_i2c_init(0); // Set as master
+    //mraa_i2c_address(i2c0, I2C_ADDRESS0);
+   
+
+	// Init Steering I2C
+	mraa_i2c_context i2c1 = mraa_i2c_init(0); // Set as master
+	mraa_i2c_address(i2c1, I2C_ADDRESS1);
 
 	while (running)
 	{
 		//read_from_arduino(i2c0, &real_speed);
 		//usleep(400000);
 		read_from_arduino(i2c1, &real_bearing);
+
+		if (abs(real_bearing - goal_bearing) < .3) {
+			auto setpt_reached = chrono::high_resolution_clock::now();
+			auto elapsed = chrono::duration_cast<chrono::milliseconds>(setpt_reached - setpt_recved);
+			cerr << "Time to bearing " << goal_bearing << ": " << elapsed.count() << endl;
+			goal_bearing = 100;
+		}
+
 		send_update(sock, real_speed, real_bearing);
 		usleep(100000);
 	}
 
 	//Close pins
-    mraa_i2c_stop(i2c0);
+    //mraa_i2c_stop(i2c0);
     mraa_i2c_stop(i2c1);
 }
 

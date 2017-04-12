@@ -20,7 +20,7 @@ void send_update(int sock, double speed, double bearing)
 	char buf[16];
 	sprintf(buf, "%+07.1f,%+07.1f", speed, bearing);
 	// send all but the null terminating character
-	fprintf(stderr, "Sending bearing of %s\n", buf);
+	fprintf(stderr, "Sending feedback of %s\n", buf);
 	send(sock, buf, 15*sizeof(char), 0);
 }
 

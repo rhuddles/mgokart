@@ -20,7 +20,7 @@ def vehicle_update_listener(conn):
         speed, steering = me_comms.receive(conn, ME_MSG_LEN)
         with state_lock:
 	    CURR_SPEED, CURR_BEARING = speed, steering
-        print speed, steering
+        print 'FROM ME: {}, {}'.format(speed, steering)
 
 if __name__ == '__main__':
 
@@ -61,8 +61,8 @@ if __name__ == '__main__':
             main.predict_boundaries(curr_speed, curr_bearing)
             cones = ast.literal_eval(data[1:])
             speed, bearing = main.get_speed_steering(cones)
-            print 'Calc Speed: ' + str(speed)
-            print 'Calc Bearing: ' + str(bearing)
+            #print 'Calc Speed: ' + str(speed)
+            #print 'Calc Bearing: ' + str(bearing)
 
         elif mtype == 'D':
             motor_disable = True
@@ -76,10 +76,13 @@ if __name__ == '__main__':
             speed = 0
 
         # Send to ME's every time
+        print 'TO ME:  {}, {}'.format(speed, bearing)
         me_conn.sendall('%05.1f,%05.1f' % (speed, bearing))
 
         with state_lock:
             curr_speed, curr_bearing = CURR_SPEED, CURR_BEARING
+
+        print 'TO SIM: {}, {}'.format(curr_speed, curr_bearing)
         sim_conn.sendall(str(curr_speed) + ',' + str(curr_bearing) + ',')
 
     me_conn.close()

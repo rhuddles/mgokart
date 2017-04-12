@@ -36,8 +36,9 @@ CPhidgetStepperHandle setup_stepper()
 
 	//TODO: Figure out the best values for these
 	//Set up some initial acceleration and velocity values
-	CPhidgetStepper_setAcceleration(stepper, 0, 12500);
-	CPhidgetStepper_setVelocityLimit(stepper, 0, 100000);
+	CPhidgetStepper_setAcceleration(stepper, 0, 262144);
+	CPhidgetStepper_setVelocityLimit(stepper, 0, 250000);
+	CPhidgetStepper_setCurrentLimit(stepper, 0, 1.63);
 
 	CPhidgetStepper_setCurrentPosition(stepper, 0, 0);
 	CPhidgetStepper_setEngaged(stepper, 0, 1);
@@ -48,7 +49,11 @@ CPhidgetStepperHandle setup_stepper()
 int move_stepper(CPhidgetStepperHandle stepper, float angle)
 {
 	int count = (angle * (51.0 * 3.0)) / (.035*2.81);
-	CPhidgetStepper_setTargetPosition (stepper, 0, count);
+
+	// On the go-kart left is postive, right is negative
+	count = -count;
+
+	CPhidgetStepper_setTargetPosition(stepper, 0, count);
 
 	return 0;
 }
