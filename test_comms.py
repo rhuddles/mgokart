@@ -12,6 +12,7 @@ from regression_steering import boundaries_to_steering
 from utility import regression, separate_and_flip
 
 from datetime import datetime
+import ast
 import math
 import os
 import sys
@@ -60,8 +61,8 @@ if __name__ == '__main__':
 
 		# Recieved Setpoint
 		if mtype == 'S':
-			speed = data[1:].split(',')[0]
-			bearing = data[1:].split(',')[1]
+			speed = float(data[1:].split(',')[0])
+			bearing = float(data[1:].split(',')[1])
 			print 'Setpoint Speed: ' + str(speed)
 			print 'Setpoint Bearing: ' + str(bearing)
 
@@ -75,7 +76,9 @@ if __name__ == '__main__':
 			    set_boundaries(predicted_left, predicted_right)
 
 			lp, rp = LEFT_COEFS, RIGHT_COEFS
-			cones = data[1:]
+
+			# Get cones
+			cones = ast.literal_eval(data[1:])
 
 			# Finish line detection
 			if detect_finish_line(cones):
