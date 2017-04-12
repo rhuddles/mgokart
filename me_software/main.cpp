@@ -53,7 +53,6 @@ void get_setpts(int sock)
 	{
 		// edits speed and bearing to be the targets
 		get_commands(sock, &target_speed, &target_bearing);
-
 		setpt.set(target_speed, target_bearing);
 	}
 }
@@ -74,7 +73,6 @@ void get_speed_bearing(int sock)
 		//read_from_arduino(i2c0, &real_speed);
 		//usleep(400000);
 		read_from_arduino(i2c1, &real_bearing);
-		fprintf(stderr, "Real Speed: %f\tReal Bearing: %f\n", real_speed, real_bearing);
 		send_update(sock, real_speed, real_bearing);
 		usleep(100000);
 	}

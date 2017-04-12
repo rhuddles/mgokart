@@ -27,6 +27,7 @@ import traceback
 from operator import itemgetter
 from tkFileDialog import askopenfile, asksaveasfile, askopenfilename
 from Tkinter import Tk
+import numpy as np
 
 # QT5 Libraries
 from PyQt5.QtGui import *
@@ -40,6 +41,7 @@ import finish_line as fl
 import boundary_mapping as bm
 import regression_steering as rs
 import predictive_speed as ps
+from utility import angle_between
 
 # Constants - TODO: Move these to either class privates or expose to user
 scaling_factor = 20.0 # Pixel to real world scaling
@@ -99,7 +101,14 @@ class CourseMaker(QWidget):
         self.steering = 0
         self.speed = 0
 
-        # QApplication.desktop().resized.connect(self.resChange)
+
+        # Validation data
+        self.interp_left_bound = []
+        self.interp_right_bound = []
+        self.closest_left_idx = None
+        self.closest_right_idx = None
+        self.errors = []
+        self.center_pt_calc = None
 
          # Get lidar position
         res = QApplication.desktop().availableGeometry(1);
@@ -162,12 +171,7 @@ class CourseMaker(QWidget):
         for point in self.detected_cones:
             cones_list.append(point[0])
 
-        finish_line, count_lap  = fl.detect_finish_line(cones_list)
-        if len(finish_line) == 2:
-            self.finish_cones = finish_line[0] + finish_line[1]
-        elif len(finish_line) == 1:
-            self.finish_cones = finish_line[0]
-
+        count_lap  = fl.detect_finish_line(cones_list)
         self.lap_num = self.lap_num + int(count_lap)
 
         # Run boundary mapping algorithms
@@ -285,7 +289,94 @@ class CourseMaker(QWidget):
 
         # TODO: Add vehicle position and angle change
         self.vehicle_angle = 1000.0*self.speed*self.wheel_angle*T/L
-    
+
+    def interpolate_points(self, p1, p2):
+        # how many points to interpolate between cones
+        PTS_TO_INTERPOLATE = 20
+
+        if p2[0] == p1[0]:
+            den = 0.0000001 # lol
+        else:
+            den = p2[0] - p1[0]
+        m = (p2[1] - p1[1]) / den
+        b = p1[1] - (m * p1[0])
+        line = np.poly1d([m, b])
+
+        x_bounds = [p1[0], p2[0]]
+        xs = np.linspace(min(x_bounds), max(x_bounds), PTS_TO_INTERPOLATE)
+        ys = [line(x) for x in xs]
+
+        return zip(xs, ys)
+
+    def interpolate_bound(self, boundary):
+        interp = []
+
+        for i in range(len(boundary) - 1):
+            interp += self.interpolate_points(boundary[i], boundary[i+1])
+
+        return interp
+
+    def get_closest_idx(self, points, start=None, end=None):
+        if not start:
+            start = 0
+        if not end:
+            end = len(points)
+
+        best = None
+        best_idx = None
+
+        for i in range(start, end):
+            d = dist((0.0, 0.0), points[i])
+            if not best or d < best:
+                best = d
+                best_idx = i
+
+        return best_idx
+
+    def calcErrorFromCenter(self):
+        self.interp_left_bound = self.interpolate_bound(self.left_bound)
+        self.interp_right_bound = self.interpolate_bound(self.right_bound)
+
+        if not self.interp_left_bound or not self.interp_right_bound:
+            # just ignore frames where we can't find boundaries, not great but
+            return
+
+        self.closest_left_idx = self.get_closest_idx(self.interp_left_bound)
+        self.closest_right_idx = self.get_closest_idx(self.interp_right_bound)
+
+        left = self.interp_left_bound[self.closest_left_idx]
+        right = self.interp_right_bound[self.closest_right_idx]
+
+        # vector between boundaries near vehicle
+        track_width_vec = [right[0] - left[0], right[1] - left[1]]
+
+        # vector from left boundary point to vehicle
+        to_vehicle_vec = [-v for v in left]
+
+        # distance from left boundary along line between boundaries
+        scalar_projection = np.linalg.norm(to_vehicle_vec) * math.cos(angle_between(to_vehicle_vec, track_width_vec))
+
+        # calc the center point in gui coords for viz
+        vec_projection = [scalar_projection * v / np.linalg.norm(track_width_vec) for v in track_width_vec]
+        center = [left[0] + vec_projection[0], left[1] + vec_projection[1]]
+        self.center_pt_calc = [
+                int(float(center[0])/scaling_factor + self.lidar_pos[0]),
+                int(-float(center[1])/scaling_factor + self.lidar_pos[1]) ]
+
+        # calculate error percentage from center
+        half_track_width = np.linalg.norm(track_width_vec) / 2.0
+        error_pct = abs(100.0 * (scalar_projection - half_track_width) / half_track_width)
+        self.errors.append(error_pct)
+
+    def calcTotalError(self):
+        print 'Average error was: %s%%' % str(np.mean(self.errors))
+        print 'Median error was:  %s%%' % str(np.median(self.errors))
+        print 'Minimum error was: %d%%' % min(self.errors)
+        print 'Maximum error was: %d%%' % max(self.errors)
+        correct_count = sum(1 for e in self.errors if e <= 10.0)
+        correct_pct = 100.0 * correct_count / len(self.errors)
+        print 'Within 10%% of center for %d%% of the simulation' % correct_pct
+
     def stepSim(self):
         '''
         Simulates a single step, moving the vehicle and running algorithms on the new location
@@ -298,6 +389,8 @@ class CourseMaker(QWidget):
         self.boundaryMapping()
         self.laneKeeping()
 
+        self.calcErrorFromCenter()
+
         # Update
         self.update()
         self.updated.emit()
@@ -307,8 +400,10 @@ class CourseMaker(QWidget):
         Run simulation continuously until stopped
         '''
         while self.sim_on:
-            time.sleep(.02)
+            time.sleep(.06)
             self.stepSim()
+
+        self.calcTotalError()
 
 
     ###--- Operational Methods ---###
@@ -334,6 +429,11 @@ class CourseMaker(QWidget):
             self.detected_cones = []
             self.right_bound = []
             self.left_bound = []
+            self.interp_left_bound = []
+            self.interp_right_bound = []
+            self.closest_left_idx = None
+            self.closest_right_idx = None
+            self.errors = []
             self.steering = 0
             self.speed = 0
             self.update()
@@ -399,8 +499,14 @@ class CourseMaker(QWidget):
         # Draw center points
         paint.setBrush(Qt.blue)
         paint.setPen(Qt.blue)
-        for p in self.center_points:
-            paint.drawEllipse(QPoint(p[0], p[1]), cone_rad/2., cone_rad/2.)
+        for p in self.interp_left_bound:
+            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
+            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
+            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
+        for p in self.interp_right_bound:
+            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
+            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
+            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
 
         # Give size hint if editing enabled
         if self.editFlag and len(self.gui_points):
@@ -427,6 +533,23 @@ class CourseMaker(QWidget):
 
         #     paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
 
+        paint.setBrush(Qt.red)
+        paint.setPen(Qt.red)
+        if self.interp_left_bound:
+            p = self.interp_left_bound[self.closest_left_idx]
+            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
+            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
+            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
+        if self.interp_right_bound:
+            p = self.interp_right_bound[self.closest_right_idx]
+            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
+            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
+            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
+
+        paint.setBrush(Qt.red)
+        paint.setPen(Qt.red)
+        if self.center_pt_calc:
+            paint.drawEllipse(QPoint(self.center_pt_calc[0], self.center_pt_calc[1]), cone_rad, cone_rad)
 
         paint.end()
 
@@ -476,7 +599,7 @@ class CourseMaker(QWidget):
 
 class Simulator(QMainWindow):
     '''
-    Simulator GUI. Contains menus for map creation, running simulations, and Hardware in the Loop (HITL) testing. 
+    Simulator GUI. Contains menus for map creation, running simulations, and Hardware in the Loop (HITL) testing.
     '''
     def __init__(self):
         super(Simulator, self).__init__()
@@ -496,9 +619,9 @@ class Simulator(QMainWindow):
         self.course.updated.connect(self.updateStatus)
 
         # Text colors
-        self.red_palette = QPalette()    
+        self.red_palette = QPalette()
         self.red_palette.setColor(QPalette.Foreground,Qt.red)
-        self.green_palette = QPalette()    
+        self.green_palette = QPalette()
         self.green_palette.setColor(QPalette.Foreground,Qt.green)
 
         if os.path.exists('courses/lastCourse'):
@@ -784,12 +907,12 @@ class Simulator(QMainWindow):
         center_radio = QRadioButton('Mark Center')
         cone_radio = QRadioButton('Mark Cone')
         cone_radio.setChecked(True)
-        
+
         # Radio group
         radio_group = QButtonGroup()
         radio_group.addButton(cone_radio)
         radio_group.addButton(center_radio)
-        
+
         # Radio button layout
         radio_layout = QHBoxLayout()
         radio_layout.addWidget(cone_radio)
@@ -900,7 +1023,7 @@ class Simulator(QMainWindow):
 
         # Tabs
         menuLayout.addWidget(tab_widget)
-        
+
         # Status
         menuLayout.addWidget(status_label)
         menuLayout.addWidget(steering_label)
