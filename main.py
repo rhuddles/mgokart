@@ -34,8 +34,6 @@ LEFT_COEFS = []
 RIGHT_BOUNDARY = []
 RIGHT_COEFS = []
 
-def init_boundaries():
-    pass
 
 # Should only be called with boundaries returned by kalman functions
 def set_boundaries(left_boundary, right_boundary):
@@ -45,106 +43,64 @@ def set_boundaries(left_boundary, right_boundary):
     RIGHT_BOUNDARY = list(right_boundary)
     RIGHT_COEFS = regression(right_boundary)
 
+
+def predict_and_filter(data, curr_speed, curr_bearing):
+    predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
+            curr_speed, curr_bearing)
+
+    if predicted_left and predicted_right:
+        set_boundaries(predicted_left, predicted_right)
+
+    return get_cones(frame, LEFT_COEFS, RIGHT_COEFS)
+
+
+def get_speed_steering(cones):
+    if detect_finish_line(cones):
+        LAP_COUNT += 1
+
+    left_boundary, right_boundary = create_boundary_lines(cones)
+    left_boundary, right_boundary = update(left_boundary, right_boundary,
+            LEFT_BOUNDARY, RIGHT_BOUNDARY)
+    set_boundaries(left_boundary, right_boundary)
+
+    speed = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY, LAP_COUNT)
+
+    bearing = boundaries_to_steering(LEFT_BOUNDARY, RIGHT_BOUNDARY)
+
+    return speed, bearing
+
+def get_and_send_setpoint(frame, curr_speed, curr_bearing, conn):
+    cones = predict_and_filter(frame, curr_speed, curr_bearing)
+    speed, bearing = get_speed_steering(cones)
+
+    # Write to socket
+    print 'Speed:\t%05.1f' % speed
+    print 'Bearing:\t%05.1f' % bearing
+    send(conn, '%05.1f,%05.1f' % (speed, bearing))
+
 if __name__ == '__main__':
+
+    print 'Trying to connect to socket on port %d' % ME_PORT
+    conn = init_connection(ME_PORT)
+    print 'Connected successfully!'
+
     if len(sys.argv) > 1:
-        files = sys.argv[1:]
-    else:
-        files = ['lidar_data/' + path for path in sorted(os.listdir('lidar_data'))]
+        filename = sys.argv[1]
+        print 'Reading data from file: %s' % filename
 
-    # laser = enable_laser()
-    init_boundaries()
-    connection = init_connection(ME_PORT)
-
-    for filename in files:
-        # For LIDAR use
-        # distances = laser.get_scan()
-        # frame = get_world_points(distances, FOV)
-        # --
-
-        # curr_speed, curr_bearing = receive(conn, MSG_LEN)
-        curr_speed, curr_bearing = 0, 0
-
-        # For csv file use
         data = parse_csv_data(filename, FOV)
-        print 'done parsing'
-        # --
 
         for frame in data:
+            curr_speed, curr_bearing = receive(conn, MSG_LEN)
+            get_and_send_setpoint(frame, curr_speed, curr_bearing, conn)
+    else:
+        print 'Reading data from LIDAR'
+        laser = enable_laser()
 
-            start = datetime.now()
-            checkpoint = datetime.now()
-            # Predict new boundary locations
-            predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
-                    curr_speed, curr_bearing)
-            if predicted_left and predicted_right:
-                set_boundaries(predicted_left, predicted_right)
+        while True:
+            distances = laser.get_scan()
+            frame = get_world_points(distances, FOV)
 
-            print 'Prediction took %s seconds' % str(datetime.now() - checkpoint)
-            checkpoint = datetime.now()
+            curr_speed, curr_bearing = receive(conn, MSG_LEN)
 
-            lp, rp = LEFT_COEFS, RIGHT_COEFS
-            # Filtering
-            cones = get_cones(frame, LEFT_COEFS, RIGHT_COEFS)
-#            plot_cones = list(cones)
-
-            print 'Filtering took %s seconds' % str(datetime.now() - checkpoint)
-            checkpoint = datetime.now()
-
-            # Finish line detection
-            if detect_finish_line(cones):
-                LAP_COUNT += 1
-                # TODO: Stop if 10...
-
-            print 'Finish line took %s seconds' % str(datetime.now() - checkpoint)
-            checkpoint = datetime.now()
-
-            # Boundary mapping
-            left_boundary, right_boundary = create_boundary_lines(cones)
-            left_boundary, right_boundary = update(left_boundary, right_boundary,
-                    LEFT_BOUNDARY, RIGHT_BOUNDARY)
-            set_boundaries(left_boundary, right_boundary)
-
-            print 'Boundary mapping took %s seconds' % str(datetime.now() - checkpoint)
-            checkpoint = datetime.now()
-
-            # Lane keeping (speed)
-            speed, count_lap  = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY)
-            LAP_COUNT = LAP_COUNT + int(count_lap)
-
-            print 'Speed took %s seconds' % str(datetime.now() - checkpoint)
-            checkpoint = datetime.now()
-
-            # Lane keeping (steering)
-            bearing = boundaries_to_steering(LEFT_BOUNDARY, RIGHT_BOUNDARY)
-
-            print 'Steering took %s seconds' % str(datetime.now() - checkpoint)
-
-            print 'Took %s seconds' % str(datetime.now() - start)
-#            # Plotting
-#
-#            # Plot cones and boundaries
-#            plot = plot_boundaries(plot_cones, LEFT_BOUNDARY, RIGHT_BOUNDARY)
-#
-#            # Plot heading vector
-#            vecx = 1000 * speed * math.sin(math.radians(bearing))
-#            vecy = 1000 * speed * math.cos(math.radians(bearing))
-#            plot.plot([0, vecx], [0, vecy], 'k', label='Trend Line')
-#
-#            # Plot reference vector
-#            plot.plot([0, 0], [1000 * coord for coord in [0, 1]], '--g', label='Reference Line')
-#
-#            plot.legend(loc='upper left')
-#
-#            xmin, xmax = plot.xlim()
-#            ymin, ymax = plot.ylim()
-#            plot.text(xmax, ymax + 700, 'Speed: %5.2f m/s' % speed)
-#            plot.text(xmax, ymax + 300, 'Bearing: %5.2f degrees' % bearing)
-#            plot.draw()
-#            plot.pause(0.00001)
-#            plot.gcf().clear()
-
-            # Write to socket
-            print 'Speed:\t%05.1f' % speed
-            print 'Bearing:\t%05.1f' % bearing
-            send(connection, '%05.1f,%05.1f' % (speed, bearing))
-
+            get_and_send_setpoint(frame, curr_speed, curr_bearing, conn)
