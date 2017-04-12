@@ -842,13 +842,16 @@ class Simulator(QMainWindow):
 
     def disableMotor(self, disabled):
         if disabled:
+            self.sock.send('D')
             self.speed_box.setValue(0)
             self.speed_box.setMaximum(0)
         else:
+            self.sock.send('E')
             self.speed_box.setMaximum(10)
 
     def runHitl(self):
         if self.hitl_running:
+            self.resetKart()
             self.run_hitl_button.setText('Run HITL Simulation')
             self.hitl_running = False
             self.hitl_thread.join(0)

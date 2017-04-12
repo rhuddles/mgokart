@@ -36,6 +36,8 @@ if __name__ == '__main__':
     vehicle_updates_thread.daemon = True
     vehicle_updates_thread.start()
 
+    motor_disable = False
+
     while True:
 
         # Get instructions from SIM
@@ -61,6 +63,15 @@ if __name__ == '__main__':
             speed, bearing = main.get_speed_steering(cones)
             print 'Calc Speed: ' + str(speed)
             print 'Calc Bearing: ' + str(bearing)
+
+        elif mtype == 'D':
+            motor_disable = True
+
+        elif mtype == 'E':
+            motor_disable = False
+
+        if motor_disable:
+            speed = 0
 
         # Send to ME's every time
         me_comms.send(me_conn, '%05.1f,%05.1f' % (speed, bearing))
