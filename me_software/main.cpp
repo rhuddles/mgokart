@@ -71,9 +71,12 @@ void get_speed_bearing(int sock)
 
 	while (running)
 	{
-		read_from_arduinos(i2c0, i2c1, &real_speed, &real_bearing);
+		//read_from_arduino(i2c0, &real_speed);
+		real_speed = 0;
+		//usleep(1000000);
+		read_from_arduino(i2c1, &real_bearing);
 		fprintf(stderr, "Real Speed: %f\tReal Bearing: %f\n", real_speed, real_bearing);
-		send_update(sock, real_speed, real_bearing);
+		//send_update(sock, real_speed, real_bearing);
 		usleep(100000);
 	}
 
@@ -120,7 +123,6 @@ void actuate(void)
 		// Check if manual or autonomous
 		autonomous = mraa_gpio_read(manual_switch);
 		if (autonomous) {
-			fprintf(stderr, "Autonomous Mode\n");
 			target = setpt.get();
 
 			volt_out = (target.first + 4.587) / 4.483;
@@ -128,7 +130,6 @@ void actuate(void)
 			target_bearing = target.second;
 		}
 		else {
-			fprintf(stderr, "Manual Mode\n");
 		    signal_out = read_analog_signal(throttle_in);
 			target_bearing = 0;
 		}

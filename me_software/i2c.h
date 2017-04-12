@@ -14,7 +14,6 @@
 extern const int I2C_ADDRESS0;
 extern const int I2C_ADDRESS1;
 
-extern "C" void read_from_arduinos(mraa_i2c_context i2c0, mraa_i2c_context i2c1,
-		double* speed, double* bearing);
+extern "C" void read_from_arduino(mraa_i2c_context i2c0, double* data);
 
 #endif
