@@ -53,9 +53,9 @@ if __name__ == '__main__':
 	s.listen(1)
 	sim, addr = s.accept()
 	curr_speed, curr_bearing = 0, 0
-    speed = 0
-    bearing = 0
-    while True:
+	speed = 0
+	bearing = 0
+	while True:
 
 		data = sim.recv(1024)
 		if not data: break
