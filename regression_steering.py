@@ -87,7 +87,7 @@ if __name__ == '__main__':
         data = parse_csv_data(filename, fov=200)
 
         for frame in data:
-            cones = get_cones(frame, None, None)
+            cones = get_cones(frame, [], [])
             detect_finish_line(cones)
             cone_xs, cone_ys = separate_and_flip(cones)
 
