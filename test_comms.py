@@ -94,8 +94,8 @@ if __name__ == '__main__':
 			set_boundaries(left_boundary, right_boundary)
 
 			# Lane keeping (speed)
-			speed, count_lap  = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY,LAP_COUNT)
-			LAP_COUNT = LAP_COUNT + int(count_lap)
+			speed  = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY,LAP_COUNT)
+			# LAP_COUNT = LAP_COUNT + int(count_lap)
 
 			# Lane keeping (steering)
 			bearing = boundaries_to_steering(LEFT_BOUNDARY, RIGHT_BOUNDARY)
@@ -104,8 +104,8 @@ if __name__ == '__main__':
 			print 'Speed:\t%05.1f' % speed
 			print 'Bearing:\t%05.1f' % bearing
 		send(connection, '%05.1f,%05.1f' % (speed, bearing))
-                speed, bearing = receive(connection,15)
-                print bearing 
-                sim.send(str(speed) + ',' + str(bearing) + ',')
+        speed, bearing = receive(connection,15)
+        print bearing 
+        sim.send(str(speed) + ',' + str(bearing) + ',')
 
 	sim.close()

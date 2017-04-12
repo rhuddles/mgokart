@@ -127,11 +127,14 @@ class CourseMaker(QWidget):
             dist = math.hypot(x,y)
             angle = math.degrees(math.atan2(x,y))
             if dist <= LIDAR_RANGE and abs(angle) < LIDAR_FOV/2:
-                lidar_coords.append(((x,y), dist, angle, point))
+                lidar_coords.append(((int(x),int(y)), dist, angle, point))
 
         # Sort cones by angle
         self.detected_cones = sorted(lidar_coords,key=itemgetter(2))
-        return self.detected_cones
+        cones = []
+        for c in self.detected_cones:
+            cones.append(c[0])
+        return cones
 
     def boundaryMapping(self):
         '''
@@ -229,7 +232,7 @@ class CourseMaker(QWidget):
 
             new_angle = angle - math.radians(self.vehicle_angle)
             new_x = dist*math.sin(new_angle)
-            new_y = dist*math.cos(new_angle) - self.speed*1000*period
+            new_y = dist*math.cos(new_angle) - 1000.0*self.speed*period
             guiX = new_x/scaling_factor + self.lidar_pos[0]
             guiY = self.lidar_pos[1] - new_y/scaling_factor
 
@@ -395,24 +398,24 @@ class CourseMaker(QWidget):
             paint.setBrush(Qt.transparent)
             paint.drawEllipse(QPoint(self.gui_points[-1][0],self.gui_points[-1][1]), 5000/scaling_factor, 5000/scaling_factor)
 
-        # Draw boundary cones
-        for p in self.detected_cones:
-            paint.setBrush(Qt.black)
+        # # Draw boundary cones
+        # for p in self.detected_cones:
+        #     paint.setBrush(Qt.black)
 
-            paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
+        #     paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
 
-        # Draw boundary cones
-        for p in self.detected_cones:
-            if self.finish_cones.count(p[0]):
-                paint.setBrush(Qt.darkMagenta)
-            elif self.left_bound.count(p[0]):
-                paint.setBrush(Qt.blue)
-            elif self.right_bound.count(p[0]):
-                paint.setBrush(Qt.darkCyan)
-            else:
-                paint.setBrush(Qt.darkRed)
+        # # Draw boundary cones
+        # for p in self.detected_cones:
+        #     if self.finish_cones.count(p[0]):
+        #         paint.setBrush(Qt.darkMagenta)
+        #     elif self.left_bound.count(p[0]):
+        #         paint.setBrush(Qt.blue)
+        #     elif self.right_bound.count(p[0]):
+        #         paint.setBrush(Qt.darkCyan)
+        #     else:
+        #         paint.setBrush(Qt.darkRed)
 
-            paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
+        #     paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
 
 
         paint.end()
@@ -738,13 +741,14 @@ class Simulator(QMainWindow):
                 curr_time = time.time()
                 diff_time = curr_time - last_time
                 last_time = curr_time
-                speed = float(data.split(',')[0])
+                speed = 3 #float(data.split(',')[0])
                 angle = float(data.split(',')[1])
                 self.steering_value.setText(str(angle))
                 self.target_speed_value.setText(str(speed))
 
                 self.course.speed = speed
-                self.course.vehicle_angle = 1000.0*speed*angle*diff_time/L
+                sin_angle = math.degrees(math.sin(math.radians(angle)))
+                self.course.vehicle_angle = -300.0*speed*sin_angle*diff_time/L
 
                 self.course.moveVehicle(diff_time)
                 self.course.update()
