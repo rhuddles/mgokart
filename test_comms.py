@@ -124,7 +124,7 @@ if __name__ == '__main__':
 		send(connection, '%05.1f,%05.1f' % (speed, bearing))
 
 		with state_lock:
-		    curr_speed, curr_bearing = CURR_SPEED, CURR_SPEED
+		    curr_speed, curr_bearing = CURR_SPEED, CURR_BEARING
 		sim.send(str(curr_speed) + ',' + str(curr_bearing) + ',')
 
 	sim.close()
