@@ -13,6 +13,7 @@ from utility import regression, separate_and_flip
 from hokuyo import enable_laser
 
 from datetime import datetime
+import argparse
 import math
 import os
 import sys
@@ -70,30 +71,44 @@ def get_speed_steering(cones):
 
     return speed, bearing
 
-def get_and_send_setpoint(frame, curr_speed, curr_bearing, conn):
+def get_and_send_setpoint(frame, curr_speed, curr_bearing, conn, verbose=False):
     cones = predict_and_filter(frame, curr_speed, curr_bearing)
     speed, bearing = get_speed_steering(cones)
 
-    # Write to socket
-    print 'Speed:\t%05.1f' % speed
-    print 'Bearing:\t%05.1f' % bearing
-    send(conn, '%05.1f,%05.1f' % (speed, bearing))
+    if verbose:
+        print 'Speed:\t%05.1f' % speed
+        print 'Bearing:\t%05.1f' % bearing
+
+    if conn:
+        send(conn, '%05.1f,%05.1f' % (speed, bearing))
 
 if __name__ == '__main__':
 
-    print 'Trying to connect to socket on port %d' % ME_PORT
-    conn = init_connection(ME_PORT)
-    print 'Connected successfully!'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--connect', action='store_true')
+    parser.add_argument('filename', nargs='?')
+    args = parser.parse_args()
 
-    if len(sys.argv) > 1:
-        filename = sys.argv[1]
-        print 'Reading data from file: %s' % filename
+    if args.connect:
+        print 'Trying to connect to socket on port %d' % ME_PORT
+        conn = init_connection(ME_PORT)
+    else:
+        print 'Not trying to connect to a socket!'
+        conn = None
 
-        data = parse_csv_data(filename, FOV)
+
+    if args.filename:
+        print 'Reading data from file: %s' % args.filename
+
+        data = parse_csv_data(args.filename, FOV)
 
         for frame in data:
-            curr_speed, curr_bearing = receive(conn, MSG_LEN)
-            get_and_send_setpoint(frame, curr_speed, curr_bearing, conn)
+            if conn:
+                curr_speed, curr_bearing = receive(conn, MSG_LEN)
+            else:
+                curr_speed, curr_bearing = 1.0, 0.0
+
+            get_and_send_setpoint(frame, curr_speed, curr_bearing, conn, True)
     else:
         print 'Reading data from LIDAR'
         laser = enable_laser()
@@ -102,6 +117,9 @@ if __name__ == '__main__':
             distances = laser.get_scan()
             frame = get_world_points(distances, FOV)
 
-            curr_speed, curr_bearing = receive(conn, MSG_LEN)
+            if conn:
+                curr_speed, curr_bearing = receive(conn, MSG_LEN)
+            else:
+                curr_speed, curr_bearing = 1.0, 0.0
 
-            get_and_send_setpoint(frame, curr_speed, curr_bearing, conn)
+            get_and_send_setpoint(frame, curr_speed, curr_bearing, conn, True)
