@@ -47,7 +47,7 @@ CPhidgetStepperHandle setup_stepper()
 
 int move_stepper(CPhidgetStepperHandle stepper, float angle)
 {
-	int count = (angle * (51.0 * 3.0)) / .035;
+	int count = (angle * (51.0 * 3.0)) / (.035*2.81);
 	CPhidgetStepper_setTargetPosition (stepper, 0, count);
 
 	return 0;

@@ -53,16 +53,18 @@ if __name__ == '__main__':
 	s.listen(1)
 	sim, addr = s.accept()
 	curr_speed, curr_bearing = 0, 0
-	while True:
+        speed = 0
+        bearing = 0
+        while True:
 
 		data = sim.recv(1024)
 		if not data: break
-		mtype = data[0]
-
-		# Recieved Setpoint
+		mtype = data[0]		
+                
+                # Recieved Setpoint
 		if mtype == 'S':
-			speed = float(data[1:].split(',')[0])
-			bearing = float(data[1:].split(',')[1])
+			speed = int(data[1:].split(',')[0])
+			bearing = int(data[1:].split(',')[1])
 			print 'Setpoint Speed: ' + str(speed)
 			print 'Setpoint Bearing: ' + str(bearing)
 
@@ -79,7 +81,7 @@ if __name__ == '__main__':
 
 			# Get cones
 			cones = ast.literal_eval(data[1:])
-
+                        print cones
 			# Finish line detection
 			if detect_finish_line(cones):
 			    LAP_COUNT += 1
@@ -92,7 +94,7 @@ if __name__ == '__main__':
 			set_boundaries(left_boundary, right_boundary)
 
 			# Lane keeping (speed)
-			speed, count_lap  = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY)
+			speed, count_lap  = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY,LAP_COUNT)
 			LAP_COUNT = LAP_COUNT + int(count_lap)
 
 			# Lane keeping (steering)
@@ -102,6 +104,8 @@ if __name__ == '__main__':
 			print 'Speed:\t%05.1f' % speed
 			print 'Bearing:\t%05.1f' % bearing
 		send(connection, '%05.1f,%05.1f' % (speed, bearing))
-		sim.send(str(speed) + ',' + str(bearing))
+                speed, bearing = receive(connection,15)
+                print bearing 
+                sim.send(str(speed) + ',' + str(bearing) + ',')
 
 	sim.close()
