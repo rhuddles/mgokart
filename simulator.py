@@ -214,7 +214,7 @@ class CourseMaker(QWidget):
             traceback.print_exc()
             self.target_speed = 0
 
-    def movePoints(self, points):
+    def movePoints(self, points, period):
         # Cones in transformation
         coords = []
 
@@ -229,7 +229,7 @@ class CourseMaker(QWidget):
 
             new_angle = angle - math.radians(self.vehicle_angle)
             new_x = dist*math.sin(new_angle)
-            new_y = dist*math.cos(new_angle) - self.speed*1000*T
+            new_y = dist*math.cos(new_angle) - self.speed*1000*period
             guiX = new_x/scaling_factor + self.lidar_pos[0]
             guiY = self.lidar_pos[1] - new_y/scaling_factor
 
@@ -237,12 +237,12 @@ class CourseMaker(QWidget):
 
         return coords
 
-    def moveVehicle(self):
+    def moveVehicle(self, period):
         '''
         Transforms gui points into new positions based on vehicle parameters and step size
         '''
-        self.gui_points = self.movePoints(self.gui_points)
-        self.center_points = self.movePoints(self.center_points)
+        self.gui_points = self.movePoints(self.gui_points, period)
+        self.center_points = self.movePoints(self.center_points, period)
 
     def updateActuators(self):
         '''
@@ -271,9 +271,8 @@ class CourseMaker(QWidget):
                 self.speed = self.target_speed
 
         # TODO: Add vehicle position and angle change
-        dtheta = 1000.0*self.speed*self.wheel_angle*T/L
-        self.vehicle_angle = dtheta
-
+        self.vehicle_angle = 1000.0*self.speed*self.wheel_angle*T/L
+    
     def stepSim(self):
         '''
         Simulates a single step, moving the vehicle and running algorithms on the new location
@@ -281,7 +280,7 @@ class CourseMaker(QWidget):
 
         # Simulate
         self.updateActuators()
-        self.moveVehicle()
+        self.moveVehicle(T)
         self.lidarScan()
         self.boundaryMapping()
         self.laneKeeping()
@@ -475,8 +474,10 @@ class Simulator(QMainWindow):
         self.map_buttons = []
 
         self.sim_on = False
+        self.hitl_running = False
         self.lidar_frame = 0
         self.lidar_data = []
+
 
         self.course = CourseMaker()
         self.course.updated.connect(self.updateStatus)
@@ -510,8 +511,6 @@ class Simulator(QMainWindow):
         self.steering_value.setText(str(self.course.steering))
         self.target_speed_value.setText(str(self.course.speed))
         self.lap_num_value.setText(str(self.course.lap_num))
-
-
 
     def runClear(self):
         self.course.clearMap()
@@ -559,7 +558,6 @@ class Simulator(QMainWindow):
         filename = askopenfilename(initialdir = './lidar_data')
         if not filename: return
         self.lidar_data = pd.parse_csv_data(filename)
-        self.next_frame_button.setMaximum(len(self.lidar_data) - 1)
         global_cones_list = []
         global_cones_list.append((0,0))
         prev_cones_list = []
@@ -687,6 +685,7 @@ class Simulator(QMainWindow):
             # Disconnect
             self.resetKart()
             self.sock.close()
+            self.sock = -1
 
             # Update GUI
             self.connect_status.setText('Disconnected')
@@ -712,19 +711,43 @@ class Simulator(QMainWindow):
             self.speed_box.setMaximum(10)
 
     def runHitl(self):
-        print 'Running Hardware In The Loop Simulation'
-        cones = self.course.lidarScan()
+        if self.hitl_running:
+            self.run_hitl_button.setText('Run HITL Simulation')
+            self.hitl_running = False
+            self.hitl_thread.join(0)
+        else:
+            self.hitl_running = True
+            self.run_hitl_button.setText('Stop HITL Simulation')
+            print 'Running Hardware In The Loop Simulation'
+            self.hitl_thread = threading.Thread(target=self.hitlThread)
+            self.hitl_thread.start()
+
+    def hitlThread(self):
         if self.sock != -1:
-            self.sock.send('C' + str(cones))
-            data = self.sock.recv(1024)
-            if not data:
-                self.connect_status.setText('Disconnected')
-                self.connect_status.setPalette(self.red_palette)
-                self.connect_button.setText('Connect to kart')
-            speed = data.split(',')[0]
-            angle = data.split(',')[1]
-            print 'Speed=' + str(speed)
-            print 'Angle=' + str(angle)
+            last_time = time.time()
+            while self.hitl_running:
+                cones = self.course.lidarScan()
+                self.sock.send('C' + str(cones))
+                data = self.sock.recv(1024)
+                if not data:
+                    self.connect_status.setText('Disconnected')
+                    self.connect_status.setPalette(self.red_palette)
+                    self.connect_button.setText('Connect to kart')
+                    break
+                # Calc time
+                curr_time = time.time()
+                diff_time = curr_time - last_time
+                last_time = curr_time
+                speed = float(data.split(',')[0])
+                angle = float(data.split(',')[1])
+                self.steering_value.setText(str(angle))
+                self.target_speed_value.setText(str(speed))
+
+                self.course.speed = speed
+                self.course.vehicle_angle = 1000.0*speed*angle*diff_time/L
+
+                self.course.moveVehicle(diff_time)
+                self.course.update()
 
     def initUI(self):
 
@@ -807,7 +830,7 @@ class Simulator(QMainWindow):
         motor_disable_button = QCheckBox('Disable Motor')
         send_button = QPushButton('Send Setpoint')
         reset_button = QPushButton('Reset Kart')
-        run_hitl_button = QPushButton('Run HITL Simulation')
+        self.run_hitl_button = QPushButton('Run HITL Simulation')
 
         # Setpoint boxes
         speed_label = QLabel('Speed:')
@@ -830,7 +853,7 @@ class Simulator(QMainWindow):
         send_button.clicked.connect(self.sendSetpoint)
         reset_button.clicked.connect(self.resetKart)
         motor_disable_button.toggled.connect(self.disableMotor)
-        run_hitl_button.clicked.connect(self.runHitl)
+        self.run_hitl_button.clicked.connect(self.runHitl)
 
         # Populate tab
         hitl_layout = QVBoxLayout(hitl_tab)
@@ -842,7 +865,7 @@ class Simulator(QMainWindow):
         hitl_layout.addLayout(steering_layout)
         hitl_layout.addWidget(send_button)
         hitl_layout.addWidget(reset_button)
-        hitl_layout.addWidget(run_hitl_button)
+        hitl_layout.addWidget(self.run_hitl_button)
         hitl_tab.setLayout(hitl_layout)
 
         ###--- Status box---###
