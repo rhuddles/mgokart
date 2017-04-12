@@ -55,6 +55,8 @@ VEHICLE_ACCELERATION = 5 # Max acceleration in m/s^2
 VEHICLE_DECELERATION = 5 # Max deceleration in m/s^2
 L = 942.0 #Wheel base in mm
 
+LAST_HOST_FILENAME = 'last_host.txt'
+
 # Save file contents:
 # Cone x,y points
 # Delimiter line
@@ -111,7 +113,8 @@ class CourseMaker(QWidget):
         self.center_pt_calc = None
 
          # Get lidar position
-        res = QApplication.desktop().availableGeometry(1);
+        #res = QApplication.desktop().availableGeometry(1);
+        res = QApplication.desktop().screenGeometry();
         scaling_factor = 64000.0/res.width()
 
         self.lidar_pos = ((res.width()- 370)/2,res.height()*3.0/5)
@@ -803,9 +806,13 @@ class Simulator(QMainWindow):
         '''
         if self.sock == -1:
             try:
+                host = self.host_textbox.text()
+                port = int(self.port_textbox.text())
+                self.saveLastHost(host)
+
                 # Connect
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.sock.connect(('35.2.191.28', 2000))
+                self.sock.connect((host, port))
 
                 # Update GUI
                 self.connect_status.setText('Connected')
@@ -891,6 +898,21 @@ class Simulator(QMainWindow):
                 self.course.moveVehicle(diff_time)
                 self.course.update()
 
+    def saveLastHost(self, host):
+        try:
+            open(LAST_HOST_FILENAME, 'w').write(host)
+            print 'Successfully wrote host!'
+        except:
+            print 'Failed to write host'
+
+    def getLastHost(self):
+        try:
+            host = open(LAST_HOST_FILENAME, 'r').readline()
+        except:
+            host = ''
+        return host
+
+
     def initUI(self):
 
         # Menu operations
@@ -968,11 +990,22 @@ class Simulator(QMainWindow):
         ###--- HITL tab ---###
         self.connect_status = QLabel('Disconnected')
         self.connect_status.setPalette(self.red_palette)
+        host_label = QLabel('Host:\t')
+        self.host_textbox = QLineEdit(self.getLastHost())
+        port_label = QLabel('Port:\t')
+        self.port_textbox = QLineEdit('2000')
         self.connect_button = QPushButton('Connect to kart')
         motor_disable_button = QCheckBox('Disable Motor')
         send_button = QPushButton('Send Setpoint')
         reset_button = QPushButton('Reset Kart')
         self.run_hitl_button = QPushButton('Run HITL Simulation')
+
+        host_layout = QHBoxLayout()
+        host_layout.addWidget(host_label)
+        host_layout.addWidget(self.host_textbox)
+        port_layout = QHBoxLayout()
+        port_layout.addWidget(port_label)
+        port_layout.addWidget(self.port_textbox)
 
         # Setpoint boxes
         speed_label = QLabel('Speed:')
@@ -1001,6 +1034,8 @@ class Simulator(QMainWindow):
         hitl_layout = QVBoxLayout(hitl_tab)
         hitl_layout.setAlignment(Qt.AlignTop)
         hitl_layout.addWidget(self.connect_status)
+        hitl_layout.addLayout(host_layout)
+        hitl_layout.addLayout(port_layout)
         hitl_layout.addWidget(self.connect_button)
         hitl_layout.addWidget(motor_disable_button)
         hitl_layout.addLayout(speed_layout)
