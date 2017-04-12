@@ -9,7 +9,7 @@ def init_connection(port):
     conn, addr = sock.accept()
     return conn
 
-def receive(conn, size, verbose=True):
+def receive(conn, size, verbose=False):
     msg = ''
     recvd = 0
     while recvd < size:

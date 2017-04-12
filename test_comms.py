@@ -16,6 +16,7 @@ import ast
 import math
 import os
 import sys
+import threading
 
 FOV = 200 # The LIDAR's real-world field of view
 
@@ -33,35 +34,50 @@ LEFT_COEFS = []
 RIGHT_BOUNDARY = []
 RIGHT_COEFS = []
 
+state_lock = threading.Lock()
+CURR_SPEED, CURR_BEARING = 0.0, 0.0
+
 def init_boundaries():
-    pass
+	pass
 
 # Should only be called with boundaries returned by kalman functions
 def set_boundaries(left_boundary, right_boundary):
-    global LEFT_BOUNDARY, LEFT_COEFS, RIGHT_BOUNDARY, RIGHT_COEFS
-    LEFT_BOUNDARY = list(left_boundary)
-    LEFT_COEFS = regression(left_boundary)
-    RIGHT_BOUNDARY = list(right_boundary)
-    RIGHT_COEFS = regression(right_boundary)
+	global LEFT_BOUNDARY, LEFT_COEFS, RIGHT_BOUNDARY, RIGHT_COEFS
+	LEFT_BOUNDARY = list(left_boundary)
+	LEFT_COEFS = regression(left_boundary)
+	RIGHT_BOUNDARY = list(right_boundary)
+	RIGHT_COEFS = regression(right_boundary)
+
+def vehicle_update_listener(conn):
+    global CURR_SPEED, CURR_BEARING
+    while True:
+	speed, steering = receive(conn, 15)
+	with state_lock:
+	    CURR_SPEED, CURR_BEARING = speed, steering
+        print CURR_SPEED, CURR_BEARING
 
 if __name__ == '__main__':
-    
+
 	init_boundaries()
 	connection = init_connection(ME_PORT)
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	s.bind(('35.2.135.78', 2000))
+	s.bind(('35.2.200.236', 2000))
 	s.listen(1)
 	sim, addr = s.accept()
-	curr_speed, curr_bearing = 0, 0
 	speed = 0
 	bearing = 0
+
+	vehicle_updates_thread = threading.Thread(target=vehicle_update_listener, args=(connection,))
+	vehicle_updates_thread.daemon = True
+	vehicle_updates_thread.start()
+
 	while True:
 
 		data = sim.recv(1024)
 		if not data: break
 		mtype = data[0]		
-                
-                # Recieved Setpoint
+				
+				# Recieved Setpoint
 		if mtype == 'S':
 			speed = int(data[1:].split(',')[0])
 			bearing = int(data[1:].split(',')[1])
@@ -71,11 +87,14 @@ if __name__ == '__main__':
 		# Recieved Cones
 		elif mtype == 'C':
 
+			with state_lock:
+			    curr_speed, curr_bearing = CURR_SPEED, CURR_BEARING
+
 			# Predict new boundary locations
 			predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
-			        curr_speed, curr_bearing)
+					curr_speed, curr_bearing)
 			if predicted_left and predicted_right:
-			    set_boundaries(predicted_left, predicted_right)
+				set_boundaries(predicted_left, predicted_right)
 
 			lp, rp = LEFT_COEFS, RIGHT_COEFS
 
@@ -83,13 +102,13 @@ if __name__ == '__main__':
 			cones = ast.literal_eval(data[1:])
 			# Finish line detection
 			if detect_finish_line(cones):
-			    LAP_COUNT += 1
-			    # TODO: Stop if 10...
+				LAP_COUNT += 1
+				# TODO: Stop if 10...
 
 			# Boundary mapping
 			left_boundary, right_boundary = create_boundary_lines(cones)
 			left_boundary, right_boundary = update(left_boundary, right_boundary,
-			        LEFT_BOUNDARY, RIGHT_BOUNDARY)
+					LEFT_BOUNDARY, RIGHT_BOUNDARY)
 			set_boundaries(left_boundary, right_boundary)
 
 			# Lane keeping (speed)
@@ -100,12 +119,12 @@ if __name__ == '__main__':
 			bearing = boundaries_to_steering(LEFT_BOUNDARY, RIGHT_BOUNDARY)
 
 			# Write to socket
-			print 'Speed:\t%05.1f' % speed
-			print 'Bearing:\t%05.1f' % bearing
+			print 'HITL Bearing:\t%05.1f' % bearing
 
 		send(connection, '%05.1f,%05.1f' % (speed, bearing))
-        speed, bearing = receive(connection,15)
-        print bearing 
-        sim.send(str(speed) + ',' + str(bearing) + ',')
+
+		with state_lock:
+		    curr_speed, curr_bearing = CURR_SPEED, CURR_SPEED
+		sim.send(str(curr_speed) + ',' + str(curr_bearing) + ',')
 
 	sim.close()

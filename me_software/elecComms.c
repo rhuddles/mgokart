@@ -19,15 +19,14 @@ void send_update(int sock, double speed, double bearing)
 	char buf[16];
 	sprintf(buf, "%+07.1f,%+07.1f", speed, bearing);
 	// send all but the null terminating character
-	send(sock, buf, sizeof(buf) - 1, 0);
+	fprintf(stderr, "Sending bearing of %s\n", buf);
+	send(sock, buf, 15*sizeof(char), 0);
 }
 
 int open_socket(int port)
 {
 	struct sockaddr_in addr, servAddr;
 	int sock = 0;
-	char buf[1024] = {0};
-	double speed = 2.3, bearing = -10;
 
 	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
