@@ -3,7 +3,7 @@
 const int I2C_ADDRESS0 = 2;
 const int I2C_ADDRESS1 = 3;
 
-void read_from_arduino(mraa_i2c_context i2c, double* data)
+int read_from_arduino(mraa_i2c_context i2c, double* data)
 {
     const int buf_len = 10;
     char buf[buf_len];
@@ -12,5 +12,7 @@ void read_from_arduino(mraa_i2c_context i2c, double* data)
 	fprintf(stderr, "Result of I2C read %d\n", result);
 
 	*data = atof(buf);
+
+	return result;
 }
 

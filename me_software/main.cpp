@@ -61,7 +61,7 @@ void get_setpts(int sock)
 
         auto end = chrono::high_resolution_clock::now();
         auto period = chrono::duration_cast<chrono::milliseconds>(end - start);
-        cerr << "Period: " << period.count() << "ms" << endl;
+        //cerr << "Period: " << period.count() << "ms" << endl;
     }
 }
 
@@ -81,10 +81,12 @@ void get_speed_bearing(int sock)
 	while (running)
 	{
 		read_from_arduino(i2c0, &real_speed);
+		usleep(100000);
+
 		read_from_arduino(i2c1, &real_bearing);
+		usleep(100000);
 
 		send_update(sock, real_speed, real_bearing);
-		usleep(100000);
 	}
 
 	//Close pins
