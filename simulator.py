@@ -17,6 +17,7 @@ Lidar - Vehicle is the origin. 1 pixel = 20 mm
 '''
 
 # Python Libraries
+import ast
 import math
 import os
 import sys
@@ -392,7 +393,7 @@ class CourseMaker(QWidget):
         self.boundaryMapping()
         self.laneKeeping()
 
-        self.calcErrorFromCenter()
+        #self.calcErrorFromCenter()
 
         # Update
         self.update()
@@ -406,7 +407,7 @@ class CourseMaker(QWidget):
             time.sleep(.06)
             self.stepSim()
 
-        self.calcTotalError()
+        #self.calcTotalError()
 
 
     ###--- Operational Methods ---###
@@ -499,17 +500,16 @@ class CourseMaker(QWidget):
         for p in self.gui_points:
             paint.drawEllipse(QPoint(p[0],p[1]), cone_rad, cone_rad)
 
-        # Draw center points
-        paint.setBrush(Qt.blue)
-        paint.setPen(Qt.blue)
-        for p in self.interp_left_bound:
-            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
-            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
-            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
-        for p in self.interp_right_bound:
-            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
-            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
-            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
+#        paint.setBrush(Qt.blue)
+#        paint.setPen(Qt.blue)
+#        for p in self.interp_left_bound:
+#            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
+#            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
+#            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
+#        for p in self.interp_right_bound:
+#            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
+#            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
+#            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
 
         # Give size hint if editing enabled
         if self.editFlag and len(self.gui_points):
@@ -536,23 +536,23 @@ class CourseMaker(QWidget):
 
         #     paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
 
-        paint.setBrush(Qt.red)
-        paint.setPen(Qt.red)
-        if self.interp_left_bound:
-            p = self.interp_left_bound[self.closest_left_idx]
-            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
-            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
-            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
-        if self.interp_right_bound:
-            p = self.interp_right_bound[self.closest_right_idx]
-            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
-            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
-            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
-
-        paint.setBrush(Qt.red)
-        paint.setPen(Qt.red)
-        if self.center_pt_calc:
-            paint.drawEllipse(QPoint(self.center_pt_calc[0], self.center_pt_calc[1]), cone_rad, cone_rad)
+#        paint.setBrush(Qt.red)
+#        paint.setPen(Qt.red)
+#        if self.interp_left_bound:
+#            p = self.interp_left_bound[self.closest_left_idx]
+#            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
+#            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
+#            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
+#        if self.interp_right_bound:
+#            p = self.interp_right_bound[self.closest_right_idx]
+#            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
+#            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
+#            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
+#
+#        paint.setBrush(Qt.red)
+#        paint.setPen(Qt.red)
+#        if self.center_pt_calc:
+#            paint.drawEllipse(QPoint(self.center_pt_calc[0], self.center_pt_calc[1]), cone_rad, cone_rad)
 
         paint.end()
 
@@ -648,7 +648,7 @@ class Simulator(QMainWindow):
 
     def updateStatus(self):
         self.steering_value.setText(str(self.course.steering))
-        self.target_speed_value.setText(str(self.course.speed))
+        self.real_speed_value.setText(str(self.course.speed))
         self.lap_num_value.setText(str(self.course.lap_num))
 
     def runClear(self):
@@ -840,7 +840,9 @@ class Simulator(QMainWindow):
         if self.sock != -1:
             speed = self.speed_box.value()
             angle = self.steering_box.value()
+
             self.sock.send('S' + str(speed)+',' +str(angle))
+            self.getResponse()
 
     def resetKart(self):
         self.speed_box.setValue(0)
@@ -867,43 +869,68 @@ class Simulator(QMainWindow):
             self.run_hitl_button.setText('Stop HITL Simulation')
             print 'Running Hardware In The Loop Simulation'
             self.hitl_thread = threading.Thread(target=self.hitlThread)
+            self.hitl_thread.daemon = True
             self.hitl_thread.start()
+
+    def parseResponse(self, data):
+        state, left_cones, right_cones = data.split('|')
+
+        # update state
+        state = state.split(',')
+        speed = float(state[0])
+        angle = float(state[1])
+        desired_speed = float(state[2])
+        desired_angle = float(state[3])
+        lap_num = int(state[4])
+        dt = float(state[5])
+
+        self.steering_value.setText(str(angle))
+        self.real_speed_value.setText(str(speed))
+        self.desired_speed_value.setText(str(desired_speed))
+        self.desired_steering_value.setText(str(desired_angle))
+        self.lap_num_value.setText(str(lap_num))
+
+        self.course.speed = speed
+        sin_angle = math.degrees(math.sin(math.radians(angle)))
+        self.course.vehicle_angle = 300.0 * speed * sin_angle * dt / L
+
+        # update detected boundaries
+        self.course.left_bound = ast.literal_eval(left_cones)
+        self.course.right_bound = ast.literal_eval(right_cones)
+
+        self.course.moveVehicle(dt)
+
+        self.course.update()
+
+    def getResponse(self):
+        data = self.sock.recv(1024)
+
+        if not data:
+            self.connect_status.setText('Disconnected')
+            self.connect_status.setPalette(self.red_palette)
+            self.connect_button.setText('Connect to kart')
+            return
+
+        try:
+            self.parseResponse(data)
+        except Exception as e:
+            print 'Error parsing response :('
+            print e
 
     def hitlThread(self):
         if self.sock != -1:
             last_time = time.time()
             while self.hitl_running:
                 cones = self.course.lidarScan()
+
                 self.sock.send('C' + str(cones))
-                data = self.sock.recv(1024)
-                print data
-                if not data:
-                    self.connect_status.setText('Disconnected')
-                    self.connect_status.setPalette(self.red_palette)
-                    self.connect_button.setText('Connect to kart')
-                    break
-                # Calc time
-                curr_time = time.time()
-                diff_time = curr_time - last_time
-                last_time = curr_time
-                speed = float(data.split(',')[0])
-                angle = float(data.split(',')[1])
-                self.steering_value.setText(str(angle))
-                self.target_speed_value.setText(str(speed))
-
-                self.course.speed = speed
-                sin_angle = math.degrees(math.sin(math.radians(angle)))
-                self.course.vehicle_angle = -300.0*speed*sin_angle*diff_time/L
-
-                self.course.moveVehicle(diff_time)
-                self.course.update()
+                getResponse()
 
     def saveLastHost(self, host):
         try:
             open(LAST_HOST_FILENAME, 'w').write(host)
-            print 'Successfully wrote host!'
         except:
-            print 'Failed to write host'
+            pass
 
     def getLastHost(self):
         try:
@@ -1048,9 +1075,33 @@ class Simulator(QMainWindow):
         ###--- Status box---###
         status_label = QLabel('Status')
         steering_label = QLabel('Steering Angle (degrees):')
+
+        real_steering_layout = QHBoxLayout()
+        real_steering_label = QLabel('Real:\t')
         self.steering_value = QLabel('0')
+        real_steering_layout.addWidget(real_steering_label)
+        real_steering_layout.addWidget(self.steering_value)
+
+        desired_steering_layout = QHBoxLayout()
+        desired_steering_label = QLabel('Desired:\t')
+        self.desired_steering_value = QLabel('0')
+        desired_steering_layout.addWidget(desired_steering_label)
+        desired_steering_layout.addWidget(self.desired_steering_value)
+
         speed_label = QLabel('Speed (m/s):')
-        self.target_speed_value = QLabel('0')
+
+        real_speed_layout = QHBoxLayout()
+        real_speed_label = QLabel('Real:\t')
+        self.real_speed_value = QLabel('0')
+        real_speed_layout.addWidget(real_speed_label)
+        real_speed_layout.addWidget(self.real_speed_value)
+
+        desired_speed_layout = QHBoxLayout()
+        desired_speed_label = QLabel('Desired:\t')
+        self.desired_speed_value = QLabel('0')
+        desired_speed_layout.addWidget(desired_speed_label)
+        desired_speed_layout.addWidget(self.desired_speed_value)
+
         lap_label = QLabel('Lap Number:')
         self.lap_num_value = QLabel('0')
 
@@ -1062,12 +1113,28 @@ class Simulator(QMainWindow):
         # Tabs
         menuLayout.addWidget(tab_widget)
 
+        hLine = QFrame()
+        hLine.setFrameStyle(QFrame.HLine)
         # Status
         menuLayout.addWidget(status_label)
+        hLine = QFrame()
+        hLine.setFrameStyle(QFrame.HLine)
+        menuLayout.addWidget(hLine)
+
         menuLayout.addWidget(steering_label)
-        menuLayout.addWidget(self.steering_value)
+        menuLayout.addLayout(real_steering_layout)
+        menuLayout.addLayout(desired_steering_layout)
+        hLine = QFrame()
+        hLine.setFrameStyle(QFrame.HLine)
+        menuLayout.addWidget(hLine)
+
         menuLayout.addWidget(speed_label)
-        menuLayout.addWidget(self.target_speed_value)
+        menuLayout.addLayout(real_speed_layout)
+        menuLayout.addLayout(desired_speed_layout)
+        hLine = QFrame()
+        hLine.setFrameStyle(QFrame.HLine)
+        menuLayout.addWidget(hLine)
+
         menuLayout.addWidget(lap_label)
         menuLayout.addWidget(self.lap_num_value)
         menuLayout.addStretch()
