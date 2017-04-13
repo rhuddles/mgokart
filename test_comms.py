@@ -6,6 +6,8 @@ import me_comms
 import threading
 import ast
 
+from datetime import datetime
+
 ME_PORT = 8090
 SIM_PORT = 2000
 
@@ -44,25 +46,29 @@ if __name__ == '__main__':
         data = sim_conn.recv(1024)
         mtype = data[0]
 
-        speed, bearing = 0.0, 0.0
+        calc_time = 0.0
+        calc_speed, calc_bearing = 0.0, 0.0
 
         # Received Setpoint
         if mtype == 'S':
-            speed = int(data[1:].split(',')[0])
-            bearing = int(data[1:].split(',')[1])
-            print 'Setpoint Speed: ' + str(speed)
-            print 'Setpoint Bearing: ' + str(bearing)
+            calc_speed = int(data[1:].split(',')[0])
+            calc_bearing = int(data[1:].split(',')[1])
+            print 'Setpoint Speed: ' + str(calc_speed)
+            print 'Setpoint Bearing: ' + str(calc_bearing)
 
         # Received Cones
         elif mtype == 'C':
             with state_lock:
                 curr_speed, curr_bearing = CURR_SPEED, CURR_BEARING
 
-            main.predict_boundaries(curr_speed, curr_bearing)
             cones = ast.literal_eval(data[1:])
-            speed, bearing = main.get_speed_steering(cones)
-            #print 'Calc Speed: ' + str(speed)
-            #print 'Calc Bearing: ' + str(bearing)
+
+            start = datetime.now()
+
+            main.predict_boundaries(curr_speed, curr_bearing)
+            calc_speed, calc_bearing = main.get_speed_steering(cones)
+
+            calc_time = datetime.now() - start
 
         elif mtype == 'D':
             motor_disable = True
@@ -73,17 +79,29 @@ if __name__ == '__main__':
             print 'Unknown message type'
 
         if motor_disable:
-            speed = 0
+            calc_speed = 0
 
         # Send to ME's every time
-        print 'TO ME:  {}, {}'.format(speed, bearing)
-        me_conn.sendall('%05.1f,%05.1f' % (speed, bearing))
+        print 'TO ME:  {}, {}'.format(calc_speed, calc_bearing)
+        me_conn.sendall('%05.1f,%05.1f' % (calc_speed, calc_bearing))
 
         with state_lock:
             curr_speed, curr_bearing = CURR_SPEED, CURR_BEARING
 
-        print 'TO SIM: {}, {}'.format(curr_speed, curr_bearing)
-        sim_conn.sendall(str(curr_speed) + ',' + str(curr_bearing) + ',')
+        # Send to SIM every time
+        print 'TO SIM: {}, {}, {}, {}, {}, {}'.format(curr_speed, curr_bearing, calc_speed, calc_bearing,\
+            main.LAP_COUNT, calc_time.total_seconds())
+
+        sim_conn.sendall(\
+            str(curr_speed) + ',' + str(curr_bearing) + ',' + \
+            str(calc_speed) + ',' + str(calc_bearing) + ',' + \
+            str(main.LAP_COUNT) + ',' \
+            str(calc_time.total_seconds()) + ',' \
+            '|' + \
+            str(main.LEFT_BOUNDARY) + \
+            '|' + \
+            str(main.RIGHT_BOUNDARY)\
+        )
 
     me_conn.close()
     sim_conn.close()
