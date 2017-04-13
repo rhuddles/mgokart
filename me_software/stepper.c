@@ -34,7 +34,6 @@ CPhidgetStepperHandle setup_stepper()
 		return 0;
 	}
 
-	//TODO: Figure out the best values for these
 	//Set up some initial acceleration and velocity values
 	CPhidgetStepper_setAcceleration(stepper, 0, 262144);
 	CPhidgetStepper_setVelocityLimit(stepper, 0, 250000);
