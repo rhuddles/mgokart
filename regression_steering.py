@@ -29,7 +29,7 @@ def get_point_on_curve(path, off_curve_pt):
 
 def get_steering_command(path, speed, dt, plot=False):
     # tune distance of this point, further = less steep turning
-    next_pos = predict_next_pos(speed, dt * 7.0)
+    next_pos = predict_next_pos(speed, dt * 10.0)
 
     # vector from vehicle state to reference state
     error = get_point_on_curve(path, next_pos)

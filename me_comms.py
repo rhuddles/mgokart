@@ -15,7 +15,7 @@ def receive_feedback(conn, verbose=False):
     msg = ''
     recvd = 0
     while recvd < FEEDBACK_MSG_LEN:
-        data = conn.recv(size - recvd)
+        data = conn.recv(FEEDBACK_MSG_LEN - recvd)
         recvd += len(data)
         msg += data
 

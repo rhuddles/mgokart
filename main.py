@@ -43,12 +43,18 @@ def set_boundaries(left_boundary, right_boundary):
     RIGHT_BOUNDARY = list(right_boundary)
     RIGHT_COEFS = regression(right_boundary)
 
-def predict_boundaries(curr_speed, curr_bearing):
+def predict_boundaries(curr_speed, curr_bearing, dt):
+    #print 'Previous left:  ', sorted(LEFT_BOUNDARY)
+    #print 'Previous right: ', sorted(RIGHT_BOUNDARY)
+
     predicted_left, predicted_right = predict(LEFT_BOUNDARY, RIGHT_BOUNDARY,
-            curr_speed, curr_bearing)
+            curr_speed, curr_bearing, dt)
 
     if predicted_left and predicted_right:
         set_boundaries(predicted_left, predicted_right)
+
+    #print 'Predicted left: ', sorted(LEFT_BOUNDARY)
+    #print 'Predicted right:', sorted(RIGHT_BOUNDARY)
 
 def predict_and_filter(frame, curr_speed, curr_bearing):
     predict_boundaries(curr_speed, curr_bearing)
@@ -57,16 +63,23 @@ def predict_and_filter(frame, curr_speed, curr_bearing):
 def get_speed_steering(cones):
     global LAP_COUNT
     if detect_finish_line(cones):
+        #print '########## FINISH LINE ##########'
         LAP_COUNT += 1
 
     left_boundary, right_boundary = create_boundary_lines(cones)
-    left_boundary, right_boundary = update(left_boundary, right_boundary,
-            LEFT_BOUNDARY, RIGHT_BOUNDARY)
+    #left_boundary, right_boundary = update(left_boundary, right_boundary,
+    #        LEFT_BOUNDARY, RIGHT_BOUNDARY)
     set_boundaries(left_boundary, right_boundary)
 
-    speed = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY, LAP_COUNT)
+    #print 'Updated left:  ', sorted(LEFT_BOUNDARY)
+    #print 'Updated right: ', sorted(RIGHT_BOUNDARY)
+    #print
 
-    bearing = boundaries_to_steering(LEFT_BOUNDARY, RIGHT_BOUNDARY)
+    #speed = get_next_speed(LEFT_BOUNDARY, RIGHT_BOUNDARY, LAP_COUNT)
+    speed = get_next_speed(left_boundary, right_boundary, LAP_COUNT)
+
+    #bearing = boundaries_to_steering(LEFT_BOUNDARY, RIGHT_BOUNDARY)
+    bearing = boundaries_to_steering(left_boundary, right_boundary)
 
     return speed, bearing
 

@@ -7,13 +7,13 @@ import math
 LEFT_CONFS = []
 RIGHT_CONFS = []
 
-def predict(left_boundary, right_boundary, speed, steering, dt=.025):
+def predict(left_boundary, right_boundary, speed, steering, dt):
     global LEFT_CONFS, RIGHT_CONFS
     predict_left = []
     predict_right = []
 
-    mag = -1000 * speed * dt
-    translate = [mag * math.cos(math.radians(90 - steering)),
+    mag = -1000.0 * speed * dt
+    translate = [mag * -math.cos(math.radians(90 - steering)),
             mag * math.sin(math.radians(90 - steering))]
 
     LEFT_CONFS.extend([0] * (len(left_boundary) - len(LEFT_CONFS)))

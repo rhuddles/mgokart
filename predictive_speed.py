@@ -21,7 +21,8 @@ VERTICAL = (0, 1)
 
 # Speed range in m/s
 MIN_SPEED = 0.45 # 1 mph
-MAX_SPEED = 2.24 # 5 mph
+#MAX_SPEED = 2.24 # 5 mph
+MAX_SPEED = 5.00 
 
 MAX_ANGLE = math.pi / 2 # For proportion
 
@@ -91,7 +92,7 @@ def get_vec(left_endpt, right_endpt):
 # Out: Speed
 def get_next_speed(left_boundary, right_boundary, lap_num):
     if lap_num >= 10:
-        return 0
+        return 0.0
 
     # Find average vector of endpoints
     endpts = get_endpts(left_boundary, right_boundary)
@@ -100,8 +101,14 @@ def get_next_speed(left_boundary, right_boundary, lap_num):
     # Find angle between average vector and vertical
     angle = angle_between(VERTICAL, vec)
     angle = angle if angle < MAX_ANGLE else MAX_ANGLE
+
     proportion = (MAX_ANGLE - angle) / MAX_ANGLE
+
+    # Linear
     speed = MAX_SPEED * proportion
+
+    # 
+    #speed = MAX_SPEED * proportion ** 2 
 
     return speed if speed > MIN_SPEED else MIN_SPEED
 
