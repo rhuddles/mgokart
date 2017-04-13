@@ -46,7 +46,7 @@ from utility import angle_between
 
 # Constants - TODO: Move these to either class privates or expose to user
 scaling_factor = 20.0 # Pixel to real world scaling
-STEPPER_SLEW = (378/4) # Speed of the stepper motor in degrees/second
+STEPPER_SLEW = 378.0 / 4.0 # Speed of the stepper motor in degrees/second
 T = .25 # Simulation step size
 LIDAR_FOV = 240 # Lidar's field of view in degrees
 LIDAR_RANGE = 10000 # Lidar's filter range in millimeters
@@ -104,6 +104,8 @@ class CourseMaker(QWidget):
         self.steering = 0
         self.speed = 0
 
+        self.finish_lines = []
+        self.finish_line_cones_bounds = []
 
         # Validation data
         self.interp_left_bound = []
@@ -150,7 +152,7 @@ class CourseMaker(QWidget):
             dist = math.hypot(x,y)
             angle = math.degrees(math.atan2(x,y))
             if dist <= LIDAR_RANGE and abs(angle) < LIDAR_FOV/2:
-                lidar_coords.append(((int(x),int(y)), dist, angle, point))
+                lidar_coords.append(((float(x), float(y)), dist, angle, point))
 
         # Sort cones by angle
         self.detected_cones = sorted(lidar_coords,key=itemgetter(2))
@@ -536,18 +538,34 @@ class CourseMaker(QWidget):
 
         #     paint.drawEllipse(QPoint(p[3][0],p[3][1]), cone_rad, cone_rad)
 
-#        paint.setBrush(Qt.red)
-#        paint.setPen(Qt.red)
-#        if self.interp_left_bound:
-#            p = self.interp_left_bound[self.closest_left_idx]
-#            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
-#            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
-#            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
-#        if self.interp_right_bound:
-#            p = self.interp_right_bound[self.closest_right_idx]
-#            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
-#            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
-#            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
+        # finish lines
+        paint.setBrush(Qt.darkMagenta)
+        paint.setPen(Qt.darkMagenta)
+        for p in self.finish_lines:
+            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
+            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
+            paint.drawEllipse(QPoint(x, y), cone_rad*1.1, cone_rad*1.1)
+
+        paint.setBrush(Qt.cyan)
+        paint.setPen(Qt.cyan)
+        for p in self.finish_line_cones_bounds:
+            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
+            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
+            paint.drawEllipse(QPoint(x, y), cone_rad*1.1, cone_rad*1.1)
+
+        paint.setBrush(Qt.blue)
+        paint.setPen(Qt.blue)
+        for p in self.left_bound:
+            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
+            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
+            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
+
+        paint.setBrush(Qt.black)
+        paint.setPen(Qt.black)
+        for p in self.right_bound:
+            x = int(float(p[0])/scaling_factor + self.lidar_pos[0])
+            y = int(-float(p[1])/scaling_factor + self.lidar_pos[1])
+            paint.drawEllipse(QPoint(x, y), cone_rad/2., cone_rad/2.)
 #
 #        paint.setBrush(Qt.red)
 #        paint.setPen(Qt.red)
@@ -894,9 +912,15 @@ class Simulator(QMainWindow):
         sin_angle = math.degrees(math.sin(math.radians(angle)))
         self.course.vehicle_angle = 300.0 * speed * sin_angle * dt / L
 
+        self.course.steering = angle
+        self.course.target_steering = desired_angle
+        self.course.target_speed = desired_speed
+
         # update detected boundaries
         self.course.left_bound = ast.literal_eval(left_cones)
         self.course.right_bound = ast.literal_eval(right_cones)
+        print 'left boundaries that luke sent', self.course.left_bound
+        print 'right boundaries that luke sent', self.course.right_bound
 
         self.course.moveVehicle(dt)
 
@@ -906,6 +930,7 @@ class Simulator(QMainWindow):
         data = self.sock.recv(1024)
 
         if not data:
+            self.sock = -1
             self.connect_status.setText('Disconnected')
             self.connect_status.setPalette(self.red_palette)
             self.connect_button.setText('Connect to kart')
@@ -918,13 +943,24 @@ class Simulator(QMainWindow):
             print e
 
     def hitlThread(self):
-        if self.sock != -1:
-            last_time = time.time()
-            while self.hitl_running:
+        last_time = time.time()
+        while self.hitl_running:
+            if self.sock != -1:
                 cones = self.course.lidarScan()
 
+                finish_line_groups = fl.get_finish_line_groups(cones)
+                self.course.finish_lines = []
+                for g in finish_line_groups:
+                    for c in g:
+                        self.course.finish_lines.append(c)
+
+                conez = [x for x in self.course.finish_lines]
+                for g in finish_line_groups:
+                    fl.remove_outside_cones(g, conez)
+                self.course.finish_line_cones_bounds = conez
+
                 self.sock.send('C' + str(cones))
-                getResponse()
+                self.getResponse()
 
     def saveLastHost(self, host):
         try:
@@ -1040,8 +1076,8 @@ class Simulator(QMainWindow):
         self.speed_box = QSpinBox()
         self.steering_box = QSpinBox()
         self.speed_box.setMaximum(10)
-        self.steering_box.setMinimum(-33)
-        self.steering_box.setMaximum(33)
+        self.steering_box.setMinimum(-100)
+        self.steering_box.setMaximum(100)
 
         speed_layout = QHBoxLayout()
         speed_layout.addWidget(speed_label)
