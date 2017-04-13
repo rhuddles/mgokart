@@ -66,7 +66,7 @@ def log_lidar(logfile, points):
 def vehicle_state_updates(log_filename, conn):
     with open(log_filename, 'w') as log:
         while True:
-            speed, steering = receive(conn, MESSAGE_LENGTH)
+            speed, steering = receive_feedback(conn)
             print speed, steering
             log_vehicle_state(log, speed, steering)
 

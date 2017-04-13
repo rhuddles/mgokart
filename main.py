@@ -5,7 +5,7 @@ from filter_data import get_cones
 from finish_line import detect_finish_line
 from boundary_mapping import create_boundary_lines, plot_boundaries
 from kalman import predict, update
-from me_comms import init_connection
+from me_comms import init_connection, receive_feedback
 from parse_data import parse_csv_data
 from predictive_speed import get_next_speed
 from regression_steering import boundaries_to_steering
@@ -23,7 +23,6 @@ FOV = 200 # The LIDAR's real-world field of view
 
 # Ports for socket comms with me's
 ME_PORT = 8090
-MSG_LEN = 11
 
 LAP_COUNT = 0 # Current lap
 
@@ -104,7 +103,7 @@ if __name__ == '__main__':
 
         for frame in data:
             if conn:
-                curr_speed, curr_bearing = receive(conn, MSG_LEN)
+                curr_speed, curr_bearing = receive_feedback(conn)
             else:
                 curr_speed, curr_bearing = 1.0, 0.0
 
@@ -118,7 +117,7 @@ if __name__ == '__main__':
             frame = get_world_points(distances, FOV)
 
             if conn:
-                curr_speed, curr_bearing = receive(conn, MSG_LEN)
+                curr_speed, curr_bearing = receive_feedback(conn)
             else:
                 curr_speed, curr_bearing = 1.0, 0.0
 

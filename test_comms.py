@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import main
-import me_comms
+from me_comms import init_connection, receive_feedback
 
 import threading
 import ast
@@ -11,15 +11,13 @@ from datetime import datetime
 ME_PORT = 8090
 SIM_PORT = 2000
 
-ME_MSG_LEN = 15
-
 state_lock = threading.Lock()
 CURR_SPEED, CURR_BEARING = 0.0, 0.0
 
 def vehicle_update_listener(conn):
     global CURR_SPEED, CURR_BEARING
     while True:
-        speed, steering = me_comms.receive(conn, ME_MSG_LEN)
+        speed, steering = receive_feedback(conn)
         with state_lock:
 	    CURR_SPEED, CURR_BEARING = speed, steering
         print 'FROM ME: {}, {}'.format(speed, steering)
@@ -27,11 +25,11 @@ def vehicle_update_listener(conn):
 if __name__ == '__main__':
 
     print 'Connecting to ME side...'
-    me_conn = me_comms.init_connection(ME_PORT)
+    me_conn = init_connection(ME_PORT)
     print 'Connected'
 
     print 'Connecting to SIM side...'
-    sim_conn = me_comms.init_connection(SIM_PORT)
+    sim_conn = init_connection(SIM_PORT)
     print 'Connected'
 
     vehicle_updates_thread = threading.Thread(target=vehicle_update_listener, args=(me_conn,))

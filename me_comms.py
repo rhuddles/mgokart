@@ -2,6 +2,8 @@
 
 import socket
 
+FEEDBACK_MSG_LEN = 15
+
 def init_connection(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(('0.0.0.0', port))
@@ -9,19 +11,19 @@ def init_connection(port):
     conn, addr = sock.accept()
     return conn
 
-def receive(conn, size, verbose=False):
+def receive_feedback(conn, verbose=False):
     msg = ''
     recvd = 0
-    while recvd < size:
+    while recvd < FEEDBACK_MSG_LEN:
         data = conn.recv(size - recvd)
         recvd += len(data)
         msg += data
 
-    # assuming msg format is 'speed,bearing'
+    # Feedback: speed,bearing
     speed, bearing = msg.split(',')
 
     if verbose:
-        print 'speed:', speed
+        print 'Speed:', speed
         print 'Bearing:', bearing
 
     return float(speed), float(bearing)
