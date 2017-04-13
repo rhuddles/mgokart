@@ -82,6 +82,8 @@ if __name__ == '__main__':
                 print 'Unknown message type'
 
             if motor_disable:
+                with state_lock:
+                    CURR_SPEED = calc_speed
                 calc_speed = 0
 
             # Send to ME's every time
